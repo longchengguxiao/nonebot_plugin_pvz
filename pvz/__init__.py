@@ -884,8 +884,8 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
 
 
 # 地址--------------------------------------------------------------------------------
-bag_path = r"C:\Users\Administrator\PycharmProjects\Yaobot\Yaobot\resource\pvz\bag.txt"
-lawn_path = r"C:\Users\Administrator\PycharmProjects\Yaobot\Yaobot\resource\pvz\lawn.txt"
+bag_path = r".\user_data\bag.txt"
+lawn_path = r".\user_data\lawn.txt"
 
 # 初始化全局变量-------------------------------------------------------------------------
 now_env = "白天"
