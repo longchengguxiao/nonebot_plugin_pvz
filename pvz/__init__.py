@@ -2,14 +2,47 @@ from PIL import Image, ImageDraw, ImageFont
 from typing import List, Tuple
 import numpy as np
 from nonebot.typing import T_State
-from nonebot.adapters.cqhttp import Bot, MessageSegment, MessageEvent, GroupMessageEvent
+from nonebot.adapters.onebot.v11 import Bot, MessageSegment, MessageEvent, GroupMessageEvent
 from nonebot import on_command
 from pathlib import Path
-from Yaobot.utils.handle_document import read_data, write_data
 from collections import Counter
-from Yaobot.utils.process_message import get_message_at, get_message_text
+import json
 import asyncio
-from Seetings import PVZ_IMAGE_PATH, PVZ_OUTPUT_PATH, PVZ_ORI_PATH, FONT_PATH
+
+# 信息操作----------------------------------------------------------
+
+
+def get_message_at(data: str) -> List[int]:
+    """
+    获取消息中所有at对象的qq
+    :param data: event.json()
+    """
+    try:
+        qq_list = []
+        data = json.loads(data)
+        for msg in data["message"]:
+            if msg["type"] == "at":
+                qq_list.append(int(msg["data"]["qq"]))
+        return qq_list
+    except KeyError:
+        return []
+
+
+def get_message_text(data: str) -> List[str]:
+    """
+    获取消息中除第一个外的所有纯文本信息
+    :param data: event.json()
+    """
+    try:
+        text = ""
+        data = json.loads(data)
+        for msg in data["message"]:
+            if msg["type"] == "text":
+                text += msg["data"]["text"].strip() + " "
+        text = text.strip().split()
+        return text
+    except KeyError:
+        return []
 
 # 定义类------------------------------------------------------------------------------
 
@@ -883,9 +916,18 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
     return log, iswin
 
 
-# 地址--------------------------------------------------------------------------------
-bag_path = r".\user_data\bag.txt"
-lawn_path = r".\user_data\lawn.txt"
+# 配置地址--------------------------------------------------------------------------------
+bag_path = r"user_data/bag.txt"
+lawn_path = r"user_data/lawn.txt"
+
+FONT_PATH = r".\方正少儿GBK简体.ttf"
+
+PVZ_IMAGE_PATH = r'.\images\pvz\base'
+PVZ_OUTPUT_PATH = r'.\images\pvz\output'
+PVZ_ORI_PATH = r'.\images\pvz\ori'
+
+STATE_OK = True
+STATE_ERROR = False
 
 # 初始化全局变量-------------------------------------------------------------------------
 now_env = "白天"
@@ -1491,3 +1533,36 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
     draw_test(res, (255, 255, 153), Path(
         PVZ_OUTPUT_PATH, "help.png"), Path(FONT_PATH))
     await _help.finish(MessageSegment.image("file:///" + PVZ_OUTPUT_PATH + r"\help.png"), at_sender=True)
+
+
+# 文档操作----------------------------------------------------------------------------
+
+def write_data(path: Path, data: list) -> bool:
+    try:
+        if data:
+            flag = 0
+            for info in data:
+                if flag == 0:
+                    with open(path, 'w', encoding='utf-8') as f:
+                        f.write(' '.join(info))
+                    flag = 1
+                elif flag == 1:
+                    with open(path, 'a', encoding='utf-8') as f:
+                        f.write('\n' + (' '.join(info)))
+        else:
+            with open(path, 'w') as f:
+                f.write('')
+        return STATE_OK
+    except BaseException:
+        return STATE_ERROR
+
+
+def read_data(path: Path) -> (bool, list):
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            data = f.readlines()
+        infos = [x.split() for x in data]
+
+        return STATE_OK, infos
+    except BaseException:
+        return STATE_ERROR, []
