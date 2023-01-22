@@ -4,10 +4,31 @@ import numpy as np
 from nonebot.typing import T_State
 from nonebot.adapters.onebot.v11 import Bot, MessageSegment, MessageEvent, GroupMessageEvent
 from nonebot import on_command
+import nonebot
 from pathlib import Path
 from collections import Counter
 import json
 import asyncio
+import os
+from .config import Config
+
+
+# 配置地址--------------------------------------------------------------------------------
+global_config = nonebot.get_driver().config
+pvz_config = Config.parse_obj(global_config.dict())
+pvz_path = pvz_config.pvz_path
+
+bag_path = pvz_path / "user_data" / "bag.txt"
+lawn_path = pvz_path / "user_data" / "lawn.txt"
+
+FONT_PATH = pvz_path / "方正少儿GBK简体.ttf"
+
+PVZ_IMAGE_PATH = pvz_path / 'images' / 'pvz' / 'base'
+PVZ_OUTPUT_PATH = pvz_path / 'images' / 'pvz' / 'output'
+PVZ_ORI_PATH = pvz_path / 'images' / 'pvz' / 'ori'
+
+STATE_OK = True
+STATE_ERROR = False
 
 # 信息操作----------------------------------------------------------
 
@@ -66,7 +87,7 @@ class Plants():  # 植物类
         self.damage = 0
         self.damage_interval = 0
         self.price = 0
-        self.damage_distance = 0
+        self.damage_distance = [0, 1]
         self.effect = 1
         self.only_night = 0
         self.penetrable = 0
@@ -602,6 +623,8 @@ def get_hp_down(
 # 绘制图片---------------------------------------------------------------------------
 
 def lawn_pic(plantname: List[str], cnt: int = 0):
+    if not os.path.exists(PVZ_OUTPUT_PATH):
+        os.makedirs(PVZ_OUTPUT_PATH)
     base_img = Image.open(Path(PVZ_IMAGE_PATH, "草坪.png")).convert("RGBA")
     for i in range(len(plantname)):
         if plantname[i] == "0":
@@ -615,6 +638,8 @@ def lawn_pic(plantname: List[str], cnt: int = 0):
 
 
 def zombie_pic(zombiename: str, dist: float, cnt: int = 0):
+    if not os.path.exists(PVZ_OUTPUT_PATH):
+        os.makedirs(PVZ_OUTPUT_PATH)
     base_img = Image.open(
         Path(
             PVZ_OUTPUT_PATH,
@@ -640,6 +665,8 @@ def draw_test(text: str, color: Tuple, save_path: Path, fontpath: Path):
 
 
 def one_by_one(team: List[str], plants: List[str]) -> (List, int):
+    if not os.path.exists(PVZ_OUTPUT_PATH):
+        os.makedirs(PVZ_OUTPUT_PATH)
     # 或去当前全部植物的对象
     lawn_plants = [Plants(plant) for plant in plants]
     # 全局时间
@@ -694,7 +721,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                         {
                             "type": "image",
                             "data": {
-                                "file": r"file:///" + PVZ_OUTPUT_PATH + rf"\output_new{cnt}.png"
+                                "file": "file:///" / PVZ_OUTPUT_PATH / f"output_new{cnt}.png"
                             }
                         }
                     ]
@@ -742,7 +769,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                                     {
                                         "type": "image",
                                         "data": {
-                                            "file": r"file:///" + PVZ_OUTPUT_PATH + rf"\output_new{cnt}.png"
+                                            "file": "file:///" / PVZ_OUTPUT_PATH / f"output_new{cnt}.png"
                                         }
                                     }
                                 ]
@@ -778,7 +805,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                                     {
                                         "type": "image",
                                         "data": {
-                                            "file": r"file:///" + PVZ_OUTPUT_PATH + rf"\output_new{cnt}.png"
+                                            "file": "file:///" / PVZ_OUTPUT_PATH / f"output_new{cnt}.png"
                                         }
                                     }
                                 ]
@@ -802,7 +829,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                                     {
                                         "type": "image",
                                         "data": {
-                                            "file": r"file:///" + PVZ_OUTPUT_PATH + rf"\output_new{cnt}.png"
+                                            "file": "file:///" / PVZ_OUTPUT_PATH / f"output_new{cnt}.png"
                                         }
                                     }
                                 ]
@@ -892,7 +919,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                                  "content": [{"type": "text",
                                               "data": {"text": f"入侵成功！成功吃掉对方脑子！"}},
                                              {"type": "image",
-                                              "data": {"file": r"file:///" + PVZ_ORI_PATH + r"\end.jpg"}}]}})
+                                              "data": {"file": "file:///" / PVZ_ORI_PATH / "end.jpg"}}]}})
             break
         elif iswin == 2:
             log.append({
@@ -915,19 +942,6 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
             )
     return log, iswin
 
-
-# 配置地址--------------------------------------------------------------------------------
-bag_path = r"user_data/bag.txt"
-lawn_path = r"user_data/lawn.txt"
-
-FONT_PATH = r".\方正少儿GBK简体.ttf"
-
-PVZ_IMAGE_PATH = r'.\images\pvz\base'
-PVZ_OUTPUT_PATH = r'.\images\pvz\output'
-PVZ_ORI_PATH = r'.\images\pvz\ori'
-
-STATE_OK = True
-STATE_ERROR = False
 
 # 初始化全局变量-------------------------------------------------------------------------
 now_env = "白天"
@@ -1001,6 +1015,7 @@ fight = on_command("入侵", priority=5, block=True)
 @look_bag.handle()
 async def _(bot: Bot, event: MessageEvent, state: T_State):
     # 读取现有数据
+
     flag, users = read_data(Path(bag_path))
     users_id = [x[0] for x in users]
     user_id = str(event.user_id)
@@ -1046,6 +1061,8 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 
 @look_lawn.handle()
 async def _(bot: Bot, event: MessageEvent, state: T_State):
+    if not os.path.exists(PVZ_OUTPUT_PATH):
+        os.makedirs(PVZ_OUTPUT_PATH)
     # 读取现有数据
     flag, users = read_data(Path(lawn_path))
     users_id = [x[0] for x in users]
@@ -1066,7 +1083,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
             # 生成草坪图片
             lawn_pic(lawn_plants)
             img = MessageSegment.image(
-                rf"file:///" + PVZ_OUTPUT_PATH + r"\output0.png")
+                "file:///" / PVZ_OUTPUT_PATH / "output0.png")
             res = MessageSegment.text(res) + img
             await asyncio.sleep(1)
             await look_lawn.finish(res, at_sender=True)
@@ -1088,7 +1105,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
             # 生成草坪图片
             lawn_pic(lawn_plants)
             img = MessageSegment.image(
-                rf"file:///" + PVZ_OUTPUT_PATH + r"\output0.png")
+                "file:///" / PVZ_OUTPUT_PATH / "output0.png")
             res = MessageSegment.text(res) + img
             await asyncio.sleep(1)
             await look_lawn.finish(res, at_sender=True)
@@ -1124,7 +1141,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
             res, (255, 255, 153), Path(
                 PVZ_OUTPUT_PATH, "plant_store.png"), Path(FONT_PATH))
         await asyncio.sleep(1)
-        await look_shop.finish(MessageSegment.image("file:///" + PVZ_OUTPUT_PATH + r"\plant_store.png"), at_sender=True)
+        await look_shop.finish(MessageSegment.image("file:///" / PVZ_OUTPUT_PATH / "plant_store.png"), at_sender=True)
     elif state["type"] == "僵尸":
         res += "当前在售的僵尸为：\n"
         for i in range(len(all_zombie)):
@@ -1134,7 +1151,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
             res, (255, 255, 153), Path(
                 PVZ_OUTPUT_PATH, "zombie_store.png"), Path(FONT_PATH))
         await asyncio.sleep(1)
-        await look_shop.finish(MessageSegment.image("file:///" + PVZ_OUTPUT_PATH + r"\zombie_store.png"), at_sender=True)
+        await look_shop.finish(MessageSegment.image("file:///" / PVZ_OUTPUT_PATH / "zombie_store.png"), at_sender=True)
     else:
         await asyncio.sleep(1)
         await look_shop.finish("输入无效，请输入植物或僵尸", at_sender=True)
@@ -1169,9 +1186,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
             res += f"此植物仅被伽刚特尔伤害\n"
         res += f"购买需要阳光{plt.price}"
         img = MessageSegment.image(
-            rf"file:///" +
-            PVZ_ORI_PATH +
-            rf"\{state['cate']}.jpg")
+            "file:///" / PVZ_ORI_PATH / f"{state['cate']}.jpg")
         res = MessageSegment.text(res) + img
     elif state["cate"] in all_zombie:
         zomb = Zombie(state["cate"])
@@ -1187,9 +1202,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
             res += "该僵尸可以忽视植物攻击带来的效果削弱\n"
         res += f"购买需要阳光{zomb.price}"
         img = MessageSegment.image(
-            rf"file:///" +
-            PVZ_ORI_PATH +
-            rf"\{state['cate']}.jpg")
+            "file:///" / PVZ_ORI_PATH / f"{state['cate']}.jpg")
         res = MessageSegment.text(res) + img
     else:
         res += "不合法输入，可以通过'查看商店'来查询支持的植物或僵尸"
@@ -1281,6 +1294,8 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 
 @put_on_lawn.got("cate", prompt="您想要放置哪种植物?放在几号位置(1-6)?中间用空格分割")
 async def _(bot: Bot, event: MessageEvent, state: T_State):
+    if not os.path.exists(PVZ_OUTPUT_PATH):
+        os.makedirs(PVZ_OUTPUT_PATH)
     temp = state["cate"].split(" ")
     if len(temp) == 2 and 0 < int(temp[1]) <= 6:
         plant, pos = state["cate"].split(" ")
@@ -1298,7 +1313,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
                     # 获取图片
                     lawn_pic(now_pos)
                     img = MessageSegment.image(
-                        rf"file:///" + PVZ_OUTPUT_PATH + r"\output0.png")
+                        "file:///" / PVZ_OUTPUT_PATH / "output0.png")
                     res = MessageSegment.text(
                         f"放置成功，您的草坪现在为：\n{','.join(now_pos)}") + img
                     await put_on_lawn.finish(res, at_sender=True)
@@ -1445,6 +1460,8 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
 
 @play_with_computer_plant.got("mode", prompt="请选择难度模式，可选择易，中，难,地狱四种不同级别的难度")
 async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
+    if not os.path.exists(PVZ_OUTPUT_PATH):
+        os.makedirs(PVZ_OUTPUT_PATH)
     mode = state["mode"].strip()
     if mode in ["易", "中", "难", "地狱"]:
         if mode == "易":
@@ -1458,7 +1475,7 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
         state["plants"] = plant_team
         lawn_pic(plant_team)
         await asyncio.sleep(0.5)
-        await play_with_computer_plant.send(MessageSegment.text("本次对抗的草坪阵容为") + MessageSegment.image(rf"file:///" + PVZ_OUTPUT_PATH + r"\output0.png"))
+        await play_with_computer_plant.send(MessageSegment.text("本次对抗的草坪阵容为") + MessageSegment.image("file:///" / PVZ_OUTPUT_PATH / "output0.png"))
     else:
         await asyncio.sleep(1)
         await play_with_computer_plant.finish("您选择的难度有误，小小垚看不懂，请重新选择", at_sender=True)
@@ -1508,6 +1525,8 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
 
 @_help.handle()
 async def _(bot: Bot, event: MessageEvent, state: T_State):
+    if not os.path.exists(PVZ_OUTPUT_PATH):
+        os.makedirs(PVZ_OUTPUT_PATH)
     res = "欢迎了解植物大战僵尸v1.0.0\n" \
           "**************************************************\n" \
           "您可以通过使用关键字'查看背包'来查看您的背包\n" \
@@ -1532,7 +1551,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
     await asyncio.sleep(1)
     draw_test(res, (255, 255, 153), Path(
         PVZ_OUTPUT_PATH, "help.png"), Path(FONT_PATH))
-    await _help.finish(MessageSegment.image("file:///" + PVZ_OUTPUT_PATH + r"\help.png"), at_sender=True)
+    await _help.finish(MessageSegment.image("file:///" / PVZ_OUTPUT_PATH / "help.png"), at_sender=True)
 
 
 # 文档操作----------------------------------------------------------------------------
