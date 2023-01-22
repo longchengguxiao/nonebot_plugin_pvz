@@ -47,8 +47,9 @@ python -m pip install nonebot-plugin-pvz
 
 ## 自定义配置
 
-'''buildoutcfg
+```buildoutcfg
 可以在 .env 文件中设置PVZ_BASIC_PATH来选择图片输出路径（以及其他图片路径，请注意设置此选项之后需要重新下载图片包，其位于项目pvz/image下）
 默认位置为''，即库的安装位置处，可以在环境中的site-packages中找到。
-···
+
+```
 
