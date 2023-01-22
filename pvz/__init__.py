@@ -16,16 +16,16 @@ from .config import Config
 # 配置地址--------------------------------------------------------------------------------
 global_config = nonebot.get_driver().config
 pvz_config = Config.parse_obj(global_config.dict())
-pvz_path = pvz_config.pvz_path
+pvz_basic_path = pvz_config.pvz_basic_path
 
-bag_path = pvz_path / "user_data" / "bag.txt"
-lawn_path = pvz_path / "user_data" / "lawn.txt"
+bag_path = pvz_basic_path / "user_data" / "bag.txt"
+lawn_path = pvz_basic_path / "user_data" / "lawn.txt"
 
-FONT_PATH = pvz_path / "方正少儿GBK简体.ttf"
+FONT_PATH = pvz_basic_path / "方正少儿GBK简体.ttf"
 
-PVZ_IMAGE_PATH = pvz_path / 'images' / 'pvz' / 'base'
-PVZ_OUTPUT_PATH = pvz_path / 'images' / 'pvz' / 'output'
-PVZ_ORI_PATH = pvz_path / 'images' / 'pvz' / 'ori'
+PVZ_IMAGE_PATH = pvz_basic_path / 'images' / 'pvz' / 'base'
+PVZ_OUTPUT_PATH = pvz_basic_path / 'images' / 'pvz' / 'output'
+PVZ_ORI_PATH = pvz_basic_path / 'images' / 'pvz' / 'ori'
 
 STATE_OK = True
 STATE_ERROR = False
