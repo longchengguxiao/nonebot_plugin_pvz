@@ -1,0 +1,3 @@
+recursive-include nonebot_plugin_pvz/images/pvz/base *.png
+recursive-include nonebot_plugin_pvz/images/pvz/ori *.jpg
+recursive-include nonebot_plugin_pvz/user_data *.txt
