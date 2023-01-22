@@ -4,6 +4,16 @@
 
 Nonebot2插件，群聊内的植物大战僵尸小游戏，通过签到获得金币，购买植物或僵尸。利用购买的植物填充您的草坪来防守或利用购买的僵尸入侵别人的草坪，吃掉他们的脑子。
 
+## 安装
+
+```buildoutcfg
+从 nb_cli 安装
+python -m nb_cli plugin install nonebot-plugin-pvz
+
+或从 PyPI 安装
+python -m pip install nonebot-plugin-pvz
+```
+
 ## 详细玩法
 
 ```buildoutcfg
