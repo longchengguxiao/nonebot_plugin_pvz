@@ -20,9 +20,10 @@ python -m pip install nonebot-plugin-pvz
 ```buildoutcfg
 在bot.py 中添加nonebot.load_plugin("nonebot_plugin_pvz")
 
-以及配置好nonebot_plugin_apscheduler,否则签到任务无法顺利执行，可以参考[文档](https://v2.nonebot.dev/docs/advanced/scheduler)
+以及配置好nonebot_plugin_apscheduler,否则签到任务无法顺利执行
 
 ```
+配置部分可以参考[nonebot文档](https://v2.nonebot.dev/docs/advanced/scheduler)
 
 ## 详细玩法
 
