@@ -5,6 +5,8 @@ from nonebot.typing import T_State
 from nonebot.adapters.onebot.v11 import Bot, MessageSegment, MessageEvent, GroupMessageEvent
 from nonebot import on_command
 import nonebot
+from nonebot import require
+from nonebot_plugin_apscheduler import scheduler
 from pathlib import Path
 from collections import Counter
 import json
@@ -13,10 +15,17 @@ import os
 from .config import Config
 
 
+
+# 启动定时器
+
+require("nonebot_plugin_apscheduler")
+
+
 # 配置地址--------------------------------------------------------------------------------
 global_config = nonebot.get_driver().config
 pvz_config = Config.parse_obj(global_config.dict())
-pvz_basic_path = pvz_config.pvz_basic_path
+pvz_basic_path = pvz_config.pvz_basic_path / \
+    os.path.dirname(os.path.abspath(__file__))
 
 bag_path = pvz_basic_path / "user_data" / "bag.txt"
 lawn_path = pvz_basic_path / "user_data" / "lawn.txt"
@@ -94,41 +103,59 @@ class Plants():  # 植物类
         self.only_hurt_by_boss = 0
         self.only_hurt_metal = 0
 
-        if plantname == "豌豆射手":
+        # 豌豆射手
+        if plantname == "pea_shooter":
             self.pea_shooter()
-        elif plantname == "坚果墙":
+        # 坚果墙
+        elif plantname == "wall_nut":
             self.wall_nut()
-        elif plantname == "寒冰射手":
+        # 寒冰射手
+        elif plantname == "snow_pea":
             self.snow_pea()
-        elif plantname == "食人花":
+        # 大嘴花
+        elif plantname == "chomper":
             self.chomper()
-        elif plantname == "双发射手":
+        # 双发豌豆
+        elif plantname == "repeater":
             self.repeater()
-        elif plantname == "小喷菇":
+        # 小喷菇
+        elif plantname == "puff_shroom":
             self.puff_shroom()
-        elif plantname == "胆小菇":
+        # 胆小菇
+        elif plantname == "scaredy_shroom":
             self.scaredy_shroom()
-        elif plantname == "大喷菇":
+        # 大喷菇
+        elif plantname == "fume_shroom":
             self.fume_shroom()
-        elif plantname == "地刺":
+        # 地刺
+        elif plantname == "spikeweed":
             self.spikeweed()
-        elif plantname == "火炬树桩":
+        # 火炬树桩
+        elif plantname == "torchwood":
             self.torchwood()
-        elif plantname == "高坚果":
+        # 高坚果
+        elif plantname == "tall_nut":
             self.tall_nut()
-        elif plantname == "卷心菜投手":
+        # 卷心菜投手
+        elif plantname == "cabbage_pult":
             self.cabbage_pult()
-        elif plantname == "玉米投手":
+        # 玉米投手
+        elif plantname == "kernet_pult":
             self.kernet_pult()
-        elif plantname == "西瓜投手":
+        # 西瓜投手
+        elif plantname == "melon_pult":
             self.melon_pult()
-        elif plantname == "机枪豌豆":
+        # 机枪豌豆
+        elif plantname == "gatling_pea":
             self.gatling_pea()
-        elif plantname == "地刺王":
+        # 石地刺
+        elif plantname == "spikerock":
             self.spikerock()
-        elif plantname == "磁力菇":
+        # 磁力菇
+        elif plantname == "magnet_shroom":
             self.magnet_shroom()
-        elif plantname == "冰瓜":
+        # "冬"瓜
+        elif plantname == "winter_melon":
             self.winter_melon()
 
     def pea_shooter(self):
@@ -181,7 +208,7 @@ class Plants():  # 植物类
 
     def chomper(self):
         """
-        食人花
+        大嘴花
         :return:
         """
         self.hp = 300
@@ -197,7 +224,7 @@ class Plants():  # 植物类
 
     def repeater(self):
         """
-        双发射手
+        双发豌豆
         :return:
         """
         self.hp = 300
@@ -357,7 +384,7 @@ class Plants():  # 植物类
 
     def spikerock(self):
         """
-        地刺王
+        石地刺
         :return:
         """
         self.hp = 40000
@@ -405,7 +432,7 @@ class Plants():  # 植物类
 
     def winter_melon(self):
         """
-        冰瓜
+        冬瓜
         :return:
         """
         self.hp = 300
@@ -444,23 +471,32 @@ class Zombie():
         self.ignore_effect = 0
         self.is_gargantuar = 0
 
-        if zombiename == "普通僵尸":
+        # 普通僵尸
+        if zombiename == "zombie":
             self.normal_zombie()
-        elif zombiename == "路障僵尸":
+        # 路障僵尸
+        elif zombiename == "conehead_zombie":
             self.conehead_zombie()
-        elif zombiename == "撑杆僵尸":
+        # 撑杆僵尸
+        elif zombiename == "buckethead_zombie":
             self.buckethead_zombie()
-        elif zombiename == "铁桶僵尸":
+        # 铁桶僵尸
+        elif zombiename == "pole_vaulting_zombie":
             self.pole_vaulting_zombie()
-        elif zombiename == "铁栅门僵尸":
+        # 铁栅门僵尸
+        elif zombiename == "screen_door_zombie":
             self.screen_door_zombie()
-        elif zombiename == "橄榄球僵尸":
+        # 橄榄球僵尸
+        elif zombiename == "football_zombie":
             self.football_zombie()
-        elif zombiename == "跳跳僵尸":
+        # 跳跳僵尸
+        elif zombiename == "pogo_zombie":
             self.pogo_zombie()
-        elif zombiename == "伽刚特尔":
+        # 伽刚特尔
+        elif zombiename == "gargantuar":
             self.gargantuar()
-        elif zombiename == "小鬼僵尸":
+        # 小鬼僵尸
+        elif zombiename == "imp":
             self.imp()
 
     def normal_zombie(self):
@@ -625,7 +661,7 @@ def get_hp_down(
 def lawn_pic(plantname: List[str], cnt: int = 0):
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
-    base_img = Image.open(Path(PVZ_IMAGE_PATH, "草坪.png")).convert("RGBA")
+    base_img = Image.open(Path(PVZ_IMAGE_PATH, "lawn.png")).convert("RGBA")
     for i in range(len(plantname)):
         if plantname[i] == "0":
             continue
@@ -703,8 +739,8 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
         # 在僵尸的两次攻击间隔内，植物造成的伤害
         all_damage = 0
         # 生成图片，写入日志
-        lawn_pic(plants, cnt)
-        zombie_pic(zombie, dist, cnt)
+        lawn_pic([all_plants[x] for x in plants], cnt)
+        zombie_pic(all_zombie[zombie], dist, cnt)
         log.append(
             {
                 "type": "node",
@@ -757,8 +793,8 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                     fight_time = 0
                     fight_cond = 1
                     # 生成图片，打印日志
-                    lawn_pic(plants, cnt)
-                    zombie_pic(zombie, dist, cnt)
+                    lawn_pic([all_plants[x] for x in plants], cnt)
+                    zombie_pic(all_zombie[zombie], dist, cnt)
                     log.append(
                         {
                             "type": "node",
@@ -784,8 +820,8 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                     # 距离递减
                     dist -= 1
                     # 生成图片
-                    lawn_pic(plants, cnt)
-                    zombie_pic(zombie, dist, cnt)
+                    lawn_pic([all_plants[x] for x in plants], cnt)
+                    zombie_pic(all_zombie[zombie], dist, cnt)
                     # 如果是跳跳僵尸则不会失去下一次跳跃的功能
                     if zb.v == 0.4:
                         zb.jump = 0
@@ -946,25 +982,26 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
 # 初始化全局变量-------------------------------------------------------------------------
 now_env = "白天"
 
-all_plants = [
-    "豌豆射手",
-    "坚果墙",
-    "寒冰射手",
-    "食人花",
-    "双发射手",
-    "小喷菇",
-    "胆小菇",
-    "大喷菇",
-    "地刺",
-    "火炬树桩",
-    "高坚果",
-    "卷心菜投手",
-    "玉米投手",
-    "西瓜投手",
-    "机枪豌豆",
-    "地刺王",
-    "磁力菇",
-    "冰瓜"]
+all_plants = {
+    "豌豆射手": "pea_shooter",
+    "坚果墙": "wall_nut",
+    "寒冰射手": "snow_pea",
+    "食人花": "chomper",
+    "双发射手": "repeater",
+    "小喷菇": "puff_shroom",
+    "胆小菇": "scaredy_shroom",
+    "大喷菇": "fume_shroom",
+    "地刺": "spikeweed",
+    "火炬树桩": "torchwood",
+    "高坚果": "tall_nut",
+    "卷心菜投手": "cabbage_pult",
+    "玉米投手": "kernet_pult",
+    "西瓜投手": "melon_pult",
+    "机枪豌豆": "gatling_pea",
+    "地刺王": "spikerock",
+    "磁力菇": "magnet_shroom",
+    "冰瓜": "winter_melon"
+}
 plants_price = [
     100,
     50,
@@ -984,19 +1021,22 @@ plants_price = [
     225,
     100,
     500]
-all_zombie = [
-    "普通僵尸",
-    "路障僵尸",
-    "撑杆僵尸",
-    "铁桶僵尸",
-    "铁栅门僵尸",
-    "橄榄球僵尸",
-    "跳跳僵尸",
-    "伽刚特尔",
-    "小鬼僵尸"]
+all_zombie = {
+    "普通僵尸": "zombie",
+    "路障僵尸": "conehead_zombie",
+    "撑杆僵尸": "buckethead_zombie",
+    "铁桶僵尸": "pole_vaulting_zombie",
+    "铁栅门僵尸": "screen_door_zombie",
+    "橄榄球僵尸": "football_zombie",
+    "跳跳僵尸": "pogo_zombie",
+    "伽刚特尔": "gargantuar",
+    "小鬼僵尸": "imp"
+}
 zombie_price = [50, 75, 75, 125, 100, 175, 150, 300, 50]
 
 # 初始化命令----------------------------------------------------------------------------
+
+pvz_signin = on_command("pvz签到", block=True, priority=5, aliases={"植物大战僵尸签到"})
 look_bag = on_command("查看背包", block=True, priority=5, aliases={"我的背包"})
 look_lawn = on_command("查看草坪", block=True, priority=5, aliases={"我的草坪"})
 look_shop = on_command("查看商店", block=True, priority=5)
@@ -1009,19 +1049,41 @@ play_with_computer_plant = on_command(
 _help = on_command("植物大战僵尸帮助", aliases={"pvz帮助"}, priority=5, block=True)
 fight = on_command("入侵", priority=5, block=True)
 
+# pvz签到-----------------------------------------------------------------------------
+
+
+@pvz_signin.handle()
+async def _(bot: Bot, event: MessageEvent, state: T_State):
+    flag, users = read_data(Path(bag_path))
+    users_id = [x[0] for x in users]
+    user_id = str(event.user_id)
+    if user_id in users_id:
+        if users[users_id.index(user_id)][4] == "0":
+            users[users_id.index(user_id)][3] = str(
+                int(users[users_id.index(user_id)][3]) + 100)
+            users[users_id.index(user_id)][4] = "1"
+            flag = write_data(Path(bag_path), users)
+            msg = "今天获得了50阳光，已经放入您的背包"
+        else:
+            msg = "贪心的人是不会有好远的哦...您今天已经签到过啦！"
+
+    else:
+        msg = "您暂未注册植物大战僵尸功能，可以通过“查看背包”或“我的背包”来进行注册"
+    await pvz_signin.finish(msg, at_sender=True)
+
+
 # 查看背包-----------------------------------------------------------------------------
 
 
 @look_bag.handle()
 async def _(bot: Bot, event: MessageEvent, state: T_State):
     # 读取现有数据
-
     flag, users = read_data(Path(bag_path))
     users_id = [x[0] for x in users]
     user_id = str(event.user_id)
     # 判断用户
     if user_id in users_id:
-        _, plants, zombies, sunshine = users[users_id.index(user_id)]
+        _, plants, zombies, sunshine, _ = users[users_id.index(user_id)]
         res = ""
         if plants == "0":
             res += "您暂未有任何植物储存，可以去查看商店购买"
@@ -1048,11 +1110,12 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
         await asyncio.sleep(1)
         await look_bag.finish(res, at_sender=True)
     else:
-        users.append([user_id, "豌豆射手", "普通僵尸", "0"])
+        # 储存格式为 user_id 拥有植物 拥有僵尸 拥有阳光 是否签到
+        users.append([user_id, "豌豆射手", "普通僵尸", "100", "1"])
         flag = write_data(Path(bag_path), users)
         await asyncio.sleep(1)
         if flag:
-            await look_bag.finish("恭喜您第一次开启背包，自动自动赠送一个豌豆射手和普通僵尸，可以通过签到来获取每天的50阳光哦", at_sender=True)
+            await look_bag.finish("恭喜您第一次开启背包，自动自动赠送一个豌豆射手和普通僵尸，可以通过签到来获取每天的100阳光哦", at_sender=True)
         else:
             await look_bag.finish("写入文件出错，请联系管理员")
 
@@ -1081,7 +1144,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
                     res += f"位置{i + 1}:{lawn_plants[i]}\n"
             res += "**********\n实际的布置位置的序号从左到右为1,2,3,4,5,6,即僵尸会有限攻击6号位植物"
             # 生成草坪图片
-            lawn_pic(lawn_plants)
+            lawn_pic([all_plants[x] for x in lawn_plants])
             img = MessageSegment.image(
                 "file:///" / PVZ_OUTPUT_PATH / "output0.png")
             res = MessageSegment.text(res) + img
@@ -1103,7 +1166,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
                     res += f"位置{i+1}:{lawn_plants[i]}\n"
             res += "**********\n实际的布置位置的序号从左到右为1,2,3,4,5,6,即僵尸会有限攻击6号位植物"
             # 生成草坪图片
-            lawn_pic(lawn_plants)
+            lawn_pic([all_plants[x] for x in lawn_plants])
             img = MessageSegment.image(
                 "file:///" / PVZ_OUTPUT_PATH / "output0.png")
             res = MessageSegment.text(res) + img
@@ -1132,10 +1195,11 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 @look_shop.got("type", prompt="您想要查看植物还是僵尸?")
 async def _(bot: Bot, event: MessageEvent, state: T_State):
     res = ""
+    print(state["type"])
     if state["type"] == "植物":
         res += "当前在售的植物有：\n"
-        for i in range(len(all_plants)):
-            res += f"{i+1}.{all_plants[i]}的售价为{plants_price[i]};\n"
+        for i in range(len(all_plants.items())):
+            res += f"{i+1}.{list(all_plants.items())[i][0]}的售价为{plants_price[i]};\n"
         res += "可以通过关键字'购买'+名称来购买植物"
         draw_test(
             res, (255, 255, 153), Path(
@@ -1144,8 +1208,8 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
         await look_shop.finish(MessageSegment.image("file:///" / PVZ_OUTPUT_PATH / "plant_store.png"), at_sender=True)
     elif state["type"] == "僵尸":
         res += "当前在售的僵尸为：\n"
-        for i in range(len(all_zombie)):
-            res += f"{i+1}.{all_zombie[i]}的售价为{zombie_price[i]};\n"
+        for i in range(len(all_zombie.items())):
+            res += f"{i+1}.{list(all_zombie.keys())[i]}的售价为{zombie_price[i]};\n"
         res += "可以通过关键字'购买'+名称来购买僵尸"
         draw_test(
             res, (255, 255, 153), Path(
@@ -1161,7 +1225,11 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 @look_pvz.handle()
 async def _(bot: Bot, event: MessageEvent, state: T_State):
     args = get_message_text(event.json())
-    if args and ((args[0] in all_plants) or (args[0] in all_zombie)):
+    if args and (
+        (args[0] in list(
+            all_plants.keys())) or (
+            args[0] in list(
+                all_zombie.keys()))):
         # 如果附加了所要查看的图鉴则不需要询问
         state["cate"] = args[0]
 
@@ -1169,9 +1237,9 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 @look_pvz.got("cate", prompt="您想要查看哪种植物或者僵尸?如果不知道都有那些名字可以通过'查看商店'来查看")
 async def _(bot: Bot, event: MessageEvent, state: T_State):
     res = ""
-    if state["cate"] in all_plants:
-        plt = Plants(state["cate"])
+    if state["cate"] in list(all_plants.keys()):
         res += f"{state['cate']}的属性如下:\n"
+        plt = Plants(all_plants[state["cate"]])
         res += f"生命值为{plt.hp}\n"
         res += f"伤害为{plt.damage}/{plt.damage_interval}s\n"
         res += f"攻击距离为({plt.damage_distance[0]}, {12 if plt.damage_distance[1]==np.inf else plt.damage_distance[1]})\n"
@@ -1188,9 +1256,9 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
         img = MessageSegment.image(
             "file:///" / PVZ_ORI_PATH / f"{state['cate']}.jpg")
         res = MessageSegment.text(res) + img
-    elif state["cate"] in all_zombie:
-        zomb = Zombie(state["cate"])
+    elif state["cate"] in list(all_zombie.keys()):
         res += f"{state['cate']}的属性如下:\n"
+        zomb = Zombie(all_zombie[state["cate"]])
         res += f"生命值为{zomb.hp}\n"
         res += f"伤害为{zomb.damage}/{zomb.damage_interval}s\n"
         res += f"移动速度为{zomb.v}格/s\n"
@@ -1219,12 +1287,16 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
     users_id = [x[0] for x in users]
     user_id = str(event.user_id)
     if user_id in users_id:
-        _, state["plants"], state["zombies"], state["sunshine"] = users[users_id.index(
+        _, state["plants"], state["zombies"], state["sunshine"], _ = users[users_id.index(
             user_id)]
         state["users"] = users
         state["index"] = users_id.index(user_id)
         args = get_message_text(event.json())
-        if args and ((args[0] in all_plants) or (args[0] in all_zombie)):
+        if args and (
+            (args[0] in list(
+                all_plants.keys())) or (
+                args[0] in list(
+                all_zombie.keys()))):
             # 如果附加了所要购买的植物或者僵尸则不需要询问
             state["cate"] = args[0]
     else:
@@ -1234,8 +1306,8 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 
 @buy.got("cate", prompt="您想要购买哪种植物或者僵尸?如果不知道都有那些名字可以通过'查看商店'来查看")
 async def _(bot: Bot, event: MessageEvent, state: T_State):
-    if state["cate"] in all_plants:
-        price = plants_price[all_plants.index(state["cate"])]
+    if state["cate"] in list(all_plants.keys()):
+        price = plants_price[list(all_plants.keys()).index(state["cate"])]
         if price > int(state["sunshine"]):
             await asyncio.sleep(1)
             await buy.finish("购买失败，阳光不够")
@@ -1250,8 +1322,8 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
             if flag:
                 await asyncio.sleep(1)
                 await buy.finish(f"购买成功，{state['cate']}已经放入背包啦！阳光余额为{rest_of_sunshine}", at_sender=True)
-    elif state["cate"] in all_zombie:
-        price = zombie_price[all_zombie.index(state["cate"])]
+    elif state["cate"] in list(all_zombie.keys()):
+        price = zombie_price[list(all_zombie.keys()).index(state["cate"])]
         if price > int(state["sunshine"]):
             await asyncio.sleep(1)
             await buy.finish("购买失败，阳光不够")
@@ -1285,7 +1357,11 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
         flag, users = read_data(Path(bag_path))
         _, state["plants"], _, _ = users[users_id.index(user_id)]
         args = get_message_text(event.json())
-        if args and ((args[0] in all_plants) or (args[0] in all_zombie)):
+        if args and (
+            (args[0] in list(
+                all_plants.keys())) or (
+                args[0] in list(
+                all_zombie.keys()))):
             state["cate"] = args[0]
     else:
         await asyncio.sleep(1)
@@ -1300,7 +1376,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
     if len(temp) == 2 and 0 < int(temp[1]) <= 6:
         plant, pos = state["cate"].split(" ")
         pos = int(pos)
-        if plant in all_plants:
+        if plant in list(all_plants.keys()):
             now_pos = state["lawn_puts"].split(',')
             my_plants = state["plants"]
             if plant in my_plants:
@@ -1311,7 +1387,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
                 if flag:
                     await asyncio.sleep(1)
                     # 获取图片
-                    lawn_pic(now_pos)
+                    lawn_pic([all_plants[x] for x in now_pos])
                     img = MessageSegment.image(
                         "file:///" / PVZ_OUTPUT_PATH / "output0.png")
                     res = MessageSegment.text(
@@ -1323,7 +1399,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
             else:
                 await asyncio.sleep(1)
                 await put_on_lawn.finish("您的背包中没有这种植物哦，请先购买啦", at_sender=True)
-        elif state["cate"] in all_zombie:
+        elif state["cate"] in list(all_zombie.keys()):
             await asyncio.sleep(1)
             await put_on_lawn.finish("你想脑子被吃掉吗，哼！", at_sender=True)
         else:
@@ -1381,7 +1457,7 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
             await fight.finish("僵尸数量太多啦, 请可怜可怜打工的僵尸吧", at_sender=True)
         # 判断背包中僵尸数量是否大于小队中
         for k, v in result2.items():
-            if k in all_zombie:
+            if k in list(all_zombie.keys()):
                 if result1.get(k, None) and result1.get(k) < v:
                     flag = 0
                     await fight.finish(f"您的背包中没有足够的{k}，请先去商店购买", at_sender=True)
@@ -1473,7 +1549,7 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
         else:
             plant_team = ["冰瓜", "玉米投手", "机枪射手", "火炬", "高坚果", "地刺王"]
         state["plants"] = plant_team
-        lawn_pic(plant_team)
+        lawn_pic([all_plants[x] for x in plant_team])
         await asyncio.sleep(0.5)
         await play_with_computer_plant.send(MessageSegment.text("本次对抗的草坪阵容为") + MessageSegment.image("file:///" / PVZ_OUTPUT_PATH / "output0.png"))
     else:
@@ -1496,7 +1572,7 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
         await play_with_computer_plant.finish("僵尸数量太多啦, 请可怜可怜打工的僵尸吧", at_sender=True)
     # 判断背包中僵尸数量是否大于小队中
     for k, v in result2.items():
-        if k in all_zombie:
+        if k in list(all_zombie.keys()):
             if result1.get(k, None) and result1.get(k) < v:
                 flag = 0
                 await play_with_computer_plant.finish(f"您的背包中没有足够的{k}，请先去商店购买", at_sender=True)
@@ -1547,12 +1623,26 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
           "**************************************************\n" \
           "通过'入侵'来操纵你的僵尸摧毁他人的防御\n例如'入侵 @龙城孤笑'\n" \
           "**************************************************\n" \
-          "总之，在植物大战僵尸的世界中，祝你玩得开心，享受这个过程！"
+          "总之，在植物大战僵尸的世界中，祝你玩得开心，享受这个过程！\n\n" \
+          "插件中所有数据以及图片来源于 ’植物大战僵尸吧‘ 提供的全图鉴中v3.6.0，在此由衷感谢数据支持。\n\n" \
+          "Create by longchengguxiao"
     await asyncio.sleep(1)
     draw_test(res, (255, 255, 153), Path(
         PVZ_OUTPUT_PATH, "help.png"), Path(FONT_PATH))
     await _help.finish(MessageSegment.image("file:///" / PVZ_OUTPUT_PATH / "help.png"), at_sender=True)
 
+# 定时操作，更改签到数据
+
+@scheduler.scheduled_job("cron", day="*")
+async def run_every_day_to_reset_signin_data():
+    flag, users = read_data(Path(bag_path))
+    for i in range(len(users)):
+        users[i][4] = "0"
+    flag = write_data(Path(bag_path), users)
+    if flag:
+        print("********植物大战僵尸签到数据已重置*********")
+    else:
+        print("********植物大战僵尸签到数据重置失败*********")
 
 # 文档操作----------------------------------------------------------------------------
 
@@ -1572,7 +1662,8 @@ def write_data(path: Path, data: list) -> bool:
             with open(path, 'w') as f:
                 f.write('')
         return STATE_OK
-    except BaseException:
+    except BaseException as e:
+        print(e)
         return STATE_ERROR
 
 
@@ -1583,5 +1674,6 @@ def read_data(path: Path) -> (bool, list):
         infos = [x.split() for x in data]
 
         return STATE_OK, infos
-    except BaseException:
+    except BaseException as e:
+        print(e)
         return STATE_ERROR, []
