@@ -12,6 +12,16 @@ python -m nb_cli plugin install nonebot-plugin-pvz
 
 或从 PyPI 安装
 python -m pip install nonebot-plugin-pvz
+
+```
+
+## 使用
+
+```buildoutcfg
+在bot.py 中添加nonebot.load_plugin("nonebot_plugin_pvz")
+
+以及配置好nonebot_plugin_apscheduler,否则签到任务无法顺利执行，可以参考[文档](https://v2.nonebot.dev/docs/advanced/scheduler)
+
 ```
 
 ## 详细玩法
@@ -38,8 +48,14 @@ python -m pip install nonebot-plugin-pvz
 通过'入侵'来操纵你的僵尸摧毁他人的防御,例如'入侵 @龙城孤笑'
 
 总之，在植物大战僵尸的世界中，祝你玩得开心，享受这个过程！
+
+
 ```
 ## 更新
+
+### v1.1.1
+
++ 2023/01/23 增加签到以及定时器来维护签到
 
 ### v1.1.0
 
@@ -65,3 +81,6 @@ python -m pip install nonebot-plugin-pvz
 
 ```
 
+## 特别感谢
+
+插件中所有植物僵尸数据以及图片来源于 **植物大战僵尸吧** 提供的全图鉴中v3.6.0，在此由衷感谢数据支持。
