@@ -8,10 +8,10 @@ Nonebot2插件，群聊内的植物大战僵尸小游戏，通过签到获得金
 
 ```buildoutcfg
 从 nb_cli 安装
-python -m nb_cli plugin install nonebot-plugin-pvz
+python -m nb_cli plugin install nonebot_plugin_pvz
 
 或从 PyPI 安装
-python -m pip install nonebot-plugin-pvz
+python -m pip install nonebot_plugin_pvz
 
 ```
 
@@ -30,7 +30,7 @@ python -m pip install nonebot-plugin-pvz
 ```buildoutcfg
 您可以通过使用关键字'查看背包'或'我的背包'来查看您的背包,首次查看背包可以获得初始奖励以及注册成为用户
 
-通过关键字'pvz签到'或'植物大战僵尸签到',来获取
+通过关键字'pvz签到'或'植物大战僵尸签到',来获取（签到会自动在每天0点重置）
 
 通过关键字'查看商店',来查看当前售卖的植物或者僵尸及其价格,例如'查看商店 植物'
 
@@ -53,6 +53,12 @@ python -m pip install nonebot-plugin-pvz
 
 ```
 ## 更新
+
+### v1.1.3
+
++ 2023/01/24 解决由于版本更迭后的state字段类别不是储存数据类别的问题
+
++ 2023/01/24 解决入侵命令中的log产生WindowPath不能被JSON解析的问题
 
 ### v1.1.2 
 
@@ -81,7 +87,7 @@ python -m pip install nonebot-plugin-pvz
 ## 自定义配置
 
 ```buildoutcfg
-可以在 .env 文件中设置PVZ_BASIC_PATH来选择图片输出路径（以及其他图片路径，请注意设置此选项之后需要重新下载图片包，其位于项目pvz/image下）
+对Python编程比较熟悉的使用者可以在 .env 文件中设置PVZ_BASIC_PATH来选择图片输出路径（以及其他图片路径，请注意设置此选项之后需要重新下载资源，其位于项目/nonebot_plugin_pvz下的font，image以及user_data）
 
 默认位置为''，即库的安装位置处，可以在环境中的site-packages中找到。
 
