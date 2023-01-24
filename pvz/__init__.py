@@ -1554,7 +1554,7 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
         elif mode == "难":
             zombie_team = ["橄榄球僵尸", "铁栅门僵尸", "铁桶僵尸", "跳跳僵尸"]
         else:
-            zombie_team = ["伽刚特尔", "橄榄球僵尸", "铁栅门僵尸", "小鬼"]
+            zombie_team = ["伽刚特尔", "橄榄球僵尸", "铁栅门僵尸", "小鬼僵尸"]
         lawn_plants = state["lawn"]
         log, iswin = one_by_one(zombie_team, lawn_plants)
         await bot.send_group_forward_msg(group_id=event.group_id, messages=log)
