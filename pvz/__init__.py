@@ -14,14 +14,14 @@ import asyncio
 import os
 from .config import Config
 
-
-
 # 启动定时器
+
 
 require("nonebot_plugin_apscheduler")
 
-
 # 配置地址--------------------------------------------------------------------------------
+
+
 global_config = nonebot.get_driver().config
 pvz_config = Config.parse_obj(global_config.dict())
 pvz_basic_path = pvz_config.pvz_basic_path / \
@@ -30,7 +30,7 @@ pvz_basic_path = pvz_config.pvz_basic_path / \
 bag_path = pvz_basic_path / "user_data" / "bag.txt"
 lawn_path = pvz_basic_path / "user_data" / "lawn.txt"
 
-FONT_PATH = pvz_basic_path / "方正少儿GBK简体.ttf"
+FONT_PATH = pvz_basic_path / "font" / "msyh.ttf"
 
 PVZ_IMAGE_PATH = pvz_basic_path / 'images' / 'pvz' / 'base'
 PVZ_OUTPUT_PATH = pvz_basic_path / 'images' / 'pvz' / 'output'
@@ -69,7 +69,7 @@ def get_message_text(data: str) -> List[str]:
         for msg in data["message"]:
             if msg["type"] == "text":
                 text += msg["data"]["text"].strip() + " "
-        text = text.strip().split()
+        text = (text.strip().split())[1:]
         return text
     except KeyError:
         return []
@@ -655,8 +655,8 @@ def get_hp_down(
             ans += plant.damage
     return ans
 
-
 # 绘制图片---------------------------------------------------------------------------
+
 
 def lawn_pic(plantname: List[str], cnt: int = 0):
     if not os.path.exists(PVZ_OUTPUT_PATH):
@@ -697,7 +697,7 @@ def draw_test(text: str, color: Tuple, save_path: Path, fontpath: Path):
     draw.text(xy=(100, 150), text=text, fill=(0, 0, 0), font=font)
     img.save(save_path)
 
-# 入侵流程
+# 入侵流程-----------------------------------------------------------------
 
 
 def one_by_one(team: List[str], plants: List[str]) -> (List, int):
@@ -980,6 +980,8 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
 
 
 # 初始化全局变量-------------------------------------------------------------------------
+
+
 now_env = "白天"
 
 all_plants = {
@@ -1222,6 +1224,8 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 
 
 # 查看图鉴-----------------------------------------------------------------------------
+
+
 @look_pvz.handle()
 async def _(bot: Bot, event: MessageEvent, state: T_State):
     args = get_message_text(event.json())
@@ -1355,7 +1359,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
         state["index"] = users_id.index(user_id)
         # 读取背包数据，用于后续判断
         flag, users = read_data(Path(bag_path))
-        _, state["plants"], _, _ = users[users_id.index(user_id)]
+        _, state["plants"], _, _, _ = users[users_id.index(user_id)]
         args = get_message_text(event.json())
         if args and (
             (args[0] in list(
@@ -1519,6 +1523,8 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
 
 
 # 僵尸人机训练----------------------------------------------------------------------------------------
+
+
 @play_with_computer_plant.handle()
 async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
     flag, users = read_data(Path(bag_path))
@@ -1631,7 +1637,8 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
         PVZ_OUTPUT_PATH, "help.png"), Path(FONT_PATH))
     await _help.finish(MessageSegment.image("file:///" / PVZ_OUTPUT_PATH / "help.png"), at_sender=True)
 
-# 定时操作，更改签到数据
+# 定时操作，更改签到数据----------------------------------------------------------------
+
 
 @scheduler.scheduled_job("cron", day="*")
 async def run_every_day_to_reset_signin_data():
@@ -1645,6 +1652,7 @@ async def run_every_day_to_reset_signin_data():
         print("********植物大战僵尸签到数据重置失败*********")
 
 # 文档操作----------------------------------------------------------------------------
+
 
 def write_data(path: Path, data: list) -> bool:
     try:
