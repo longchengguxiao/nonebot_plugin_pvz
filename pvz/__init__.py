@@ -1,3 +1,10 @@
+# !/usr/bin/env python
+# -*- coding: utf-8 -*-
+# @Time    : 2023/01/24
+# @Author  : longchengguxiao
+# @File    : nonebot_plugin_pvz
+# @Version : 3.8.9 Python
+
 from PIL import Image, ImageDraw, ImageFont
 from typing import List, Tuple
 import numpy as np
@@ -664,6 +671,8 @@ def get_hp_down(
 def lawn_pic(plantname: List[str], cnt: int = 0):
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
+    if not os.path.exists(PVZ_IMAGE_PATH):
+        os.makedirs(PVZ_IMAGE_PATH)
     base_img = Image.open(Path(PVZ_IMAGE_PATH, "lawn.png")).convert("RGBA")
     for i in range(len(plantname)):
         if plantname[i] == "0":
@@ -682,6 +691,7 @@ def lawn_pic(plantname: List[str], cnt: int = 0):
 def zombie_pic(zombiename: str, dist: float, cnt: int = 0):
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
+
     base_img = Image.open(
         Path(
             PVZ_OUTPUT_PATH,
@@ -694,6 +704,8 @@ def zombie_pic(zombiename: str, dist: float, cnt: int = 0):
 
 
 def draw_test(text: str, color: Tuple, save_path: Path, fontpath: Path):
+    if not os.path.exists(PVZ_OUTPUT_PATH):
+        os.makedirs(PVZ_OUTPUT_PATH)
     img = Image.new("RGBA", (1080, 2400), color)
     draw = ImageDraw.Draw(img)
 
@@ -1521,6 +1533,9 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
         if args and args[0] in ["易", "中", "难", "地狱"]:
             state["mode"] = args[0]
         state["lawn"] = (users[users_id.index(user_id)][1]).split(",")
+        if len(set(state["lawn"])) == 1 and set(state["lawn"]).pop() == "0":
+            await asyncio.sleep(1)
+            await play_with_computer_zombie.finish("草坪没有植物，是想要脑子被吃掉嘛喂！可以通过'放置'来向草坪上置放植物哦~")
     else:
         await asyncio.sleep(1)
         await play_with_computer_zombie.finish("您暂未开启草坪,请通过'查看草坪'来开启", at_sender=True)
