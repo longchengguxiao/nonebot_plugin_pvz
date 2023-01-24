@@ -1,11 +1,12 @@
 from distutils.core import setup
 from setuptools import find_packages
-with open("README.rst", "r", encoding="utf-8") as f:
+with open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
     setup(name='nonebot_plugin_pvz',  # 包名
-          version='1.1.5',  # 版本号
+          version='1.1.6',  # 版本号
           description='A plugin of nonebot2, which is support service to play pvz in group chat.',
           long_description=long_description,
+          long_description_content_type="text/markdown",
           author='longchengguxiao',
           author_email='1298919732@qq.com',
           url='http://www.lcgx.space/home',
