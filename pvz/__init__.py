@@ -39,6 +39,7 @@ PVZ_ORI_PATH = pvz_basic_path / 'images' / 'pvz' / 'ori'
 STATE_OK = True
 STATE_ERROR = False
 
+
 # 信息操作----------------------------------------------------------
 
 
@@ -73,6 +74,7 @@ def get_message_text(data: str) -> List[str]:
         return text
     except KeyError:
         return []
+
 
 # 定义类------------------------------------------------------------------------------
 
@@ -655,6 +657,7 @@ def get_hp_down(
             ans += plant.damage
     return ans
 
+
 # 绘制图片---------------------------------------------------------------------------
 
 
@@ -667,7 +670,10 @@ def lawn_pic(plantname: List[str], cnt: int = 0):
             continue
         box = (0 + 250 * i, 0, 250 + 250 * i, 500)
 
-        tmp_img = Image.open(Path(PVZ_IMAGE_PATH, f"{plantname[i]}.png"))
+        tmp_img = Image.open(
+            Path(
+                PVZ_IMAGE_PATH,
+                f"{plantname[i]}.png"))
         region = tmp_img.crop((835, 290, 1085, 790))
         base_img.paste(region, box, region)
     base_img.save(Path(PVZ_OUTPUT_PATH, f"output{cnt}.png"))
@@ -697,6 +703,7 @@ def draw_test(text: str, color: Tuple, save_path: Path, fontpath: Path):
     draw.text(xy=(100, 150), text=text, fill=(0, 0, 0), font=font)
     img.save(save_path)
 
+
 # 入侵流程-----------------------------------------------------------------
 
 
@@ -704,13 +711,14 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
     # 或去当前全部植物的对象
-    lawn_plants = [Plants(plant) for plant in plants]
-    # 全局时间
-    time = 0
+    lawn_plants = [Plants(all_plants[plant])
+                   for plant in plants if plant != "0"]
     # 判断是否胜利
     iswin = 0
     # 生成图片计数
     cnt = 0
+    # 僵尸序号
+    zcnt = 0
     # 入侵日志
     log = [
         {
@@ -723,6 +731,10 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
         }
     ]
     for zombie in team:
+        # 全局时间
+        time = 0
+        # 僵尸序号+1
+        zcnt += 1
         # 初始生成位置不变
         dist = 8
         # 获取现有每个植物的位置
@@ -731,7 +743,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
             i for i in range(
                 len(lawn_plants)) if lawn_plants[i].hp > 0]
         # 获取僵尸对象
-        zb = Zombie(zombie)
+        zb = Zombie(all_zombie[zombie])
         # 战斗是否开始，即僵尸是否会攻击植物
         fight_cond = 0
         # 每次开始到当前的战斗时间
@@ -739,7 +751,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
         # 在僵尸的两次攻击间隔内，植物造成的伤害
         all_damage = 0
         # 生成图片，写入日志
-        lawn_pic([all_plants[x] for x in plants], cnt)
+        lawn_pic([all_plants[x] for x in plants if x != "0"], cnt)
         zombie_pic(all_zombie[zombie], dist, cnt)
         log.append(
             {
@@ -757,7 +769,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                         {
                             "type": "image",
                             "data": {
-                                "file": "file:///" / PVZ_OUTPUT_PATH / f"output_new{cnt}.png"
+                                "file": f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"
                             }
                         }
                     ]
@@ -767,7 +779,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
         # 图片计数序号递增
         cnt += 1
         # 当前僵尸循环，当僵尸死亡后退出，每次循环经过0.5秒
-        while zb.hp > 0:
+        while zb.hp > all_damage:
             # 计算当前僵尸距每个植物的距离
             distance = [dist - pos for pos in plant_pos if pos < dist]
             # 以0.5为僵尸的攻击距离
@@ -778,9 +790,10 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                 # 计算植物伤害
                 damage = get_hp_down(
                     zb, lawn_plants, time, dist, plant_pos)
-                # 扣除僵尸血量
-                zb.hp -= damage
 
+                # 不扣除僵尸血量，转而比较僵尸的血量与总伤害
+                # # 扣除僵尸血量
+                # zb.hp -= damage
                 # 设置战斗状态
                 fight_cond = 0
                 # 记录总伤害，便于打印日志
@@ -793,7 +806,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                     fight_time = 0
                     fight_cond = 1
                     # 生成图片，打印日志
-                    lawn_pic([all_plants[x] for x in plants], cnt)
+                    lawn_pic([all_plants[x] for x in plants if x != "0"], cnt)
                     zombie_pic(all_zombie[zombie], dist, cnt)
                     log.append(
                         {
@@ -805,7 +818,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                                     {
                                         "type": "image",
                                         "data": {
-                                            "file": "file:///" / PVZ_OUTPUT_PATH / f"output_new{cnt}.png"
+                                            "file": f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"
                                         }
                                     }
                                 ]
@@ -820,7 +833,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                     # 距离递减
                     dist -= 1
                     # 生成图片
-                    lawn_pic([all_plants[x] for x in plants], cnt)
+                    lawn_pic([all_plants[x] for x in plants if x != "0"], cnt)
                     zombie_pic(all_zombie[zombie], dist, cnt)
                     # 如果是跳跳僵尸则不会失去下一次跳跃的功能
                     if zb.v == 0.4:
@@ -841,7 +854,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                                     {
                                         "type": "image",
                                         "data": {
-                                            "file": "file:///" / PVZ_OUTPUT_PATH / f"output_new{cnt}.png"
+                                            "file": f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"
                                         }
                                     }
                                 ]
@@ -865,7 +878,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                                     {
                                         "type": "image",
                                         "data": {
-                                            "file": "file:///" / PVZ_OUTPUT_PATH / f"output_new{cnt}.png"
+                                            "file": f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"
                                         }
                                     }
                                 ]
@@ -905,7 +918,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                 # 判断伤害
                 damage = get_hp_down(
                     zb, lawn_plants, time, dist, plant_pos)
-                zb.hp -= damage
+                # zb.hp -= damage
                 all_damage += damage
                 # 判断当前时间节点僵尸会不会进行攻击
                 if fight_time / \
@@ -919,7 +932,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                             "data": {
                                 "name": "疯狂戴夫",
                                 "uin": "1298919732",
-                                "content": f"时间{time},{zombie}对{plants[tar]}造成{zb.damage}点伤害。两次攻击间植物合计对{zombie}造成{all_damage}点伤害,{zombie}剩余血量为{zb.hp}"
+                                "content": f"时间{time},{zombie}对{plants[tar]}造成{zb.damage}点伤害。两次攻击间植物合计对{zombie}造成{all_damage}点伤害,{zombie}剩余血量为{zb.hp - all_damage}"
                             }
                         }
                         )
@@ -942,11 +955,11 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                             if tar == 0:
                                 iswin = 1
                                 break
-                        all_damage = 0
+                        # all_damage = 0
             # 总体时间递增
             time += 0.5
         # 判断游戏是否结束
-        if team.index(zombie) == len(team) - 1:
+        if iswin != 1 and zcnt == len(team):
             iswin = 2
         if iswin == 1:
             log.append({"type": "node",
@@ -955,7 +968,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                                  "content": [{"type": "text",
                                               "data": {"text": f"入侵成功！成功吃掉对方脑子！"}},
                                              {"type": "image",
-                                              "data": {"file": "file:///" / PVZ_ORI_PATH / "end.jpg"}}]}})
+                                              "data": {"file": f"file:///{PVZ_ORI_PATH}/end.jpg"}}]}})
             break
         elif iswin == 2:
             log.append({
@@ -966,7 +979,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                     "content": f"僵尸{zombie}被击败，所有僵尸均死去,入侵结束"
                 }
             })
-        else:
+        elif iswin == 0:
             log.append({
                 "type": "node",
                 "data": {
@@ -976,6 +989,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                 }
             }
             )
+
     return log, iswin
 
 
@@ -1051,6 +1065,7 @@ play_with_computer_plant = on_command(
 _help = on_command("植物大战僵尸帮助", aliases={"pvz帮助"}, priority=5, block=True)
 fight = on_command("入侵", priority=5, block=True)
 
+
 # pvz签到-----------------------------------------------------------------------------
 
 
@@ -1121,6 +1136,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
         else:
             await look_bag.finish("写入文件出错，请联系管理员")
 
+
 # 查看草坪-----------------------------------------------------------------------------
 
 
@@ -1146,7 +1162,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
                     res += f"位置{i + 1}:{lawn_plants[i]}\n"
             res += "**********\n实际的布置位置的序号从左到右为1,2,3,4,5,6,即僵尸会有限攻击6号位植物"
             # 生成草坪图片
-            lawn_pic([all_plants[x] for x in lawn_plants])
+            lawn_pic([all_plants[x] for x in lawn_plants if x != "0"])
             img = MessageSegment.image(
                 "file:///" / PVZ_OUTPUT_PATH / "output0.png")
             res = MessageSegment.text(res) + img
@@ -1163,12 +1179,12 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
             res = "当前您的草坪布置:\n"
             for i in range(len(lawn_plants)):
                 if lawn_plants[i] == "0":
-                    res += f"位置{i+1}:空\n"
+                    res += f"位置{i + 1}:空\n"
                 else:
-                    res += f"位置{i+1}:{lawn_plants[i]}\n"
+                    res += f"位置{i + 1}:{lawn_plants[i]}\n"
             res += "**********\n实际的布置位置的序号从左到右为1,2,3,4,5,6,即僵尸会有限攻击6号位植物"
             # 生成草坪图片
-            lawn_pic([all_plants[x] for x in lawn_plants])
+            lawn_pic([all_plants[x] for x in lawn_plants if x != "0"])
             img = MessageSegment.image(
                 "file:///" / PVZ_OUTPUT_PATH / "output0.png")
             res = MessageSegment.text(res) + img
@@ -1184,6 +1200,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
                 await asyncio.sleep(1)
                 await look_lawn.finish("写入文件出错，请联系管理员")
 
+
 # 查看商店-----------------------------------------------------------------------------
 
 
@@ -1197,11 +1214,12 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 @look_shop.got("type", prompt="您想要查看植物还是僵尸?")
 async def _(bot: Bot, event: MessageEvent, state: T_State):
     res = ""
-    print(state["type"])
+    if not isinstance(state["type"], str):
+        state["type"] = str(state["type"])
     if state["type"] == "植物":
         res += "当前在售的植物有：\n"
         for i in range(len(all_plants.items())):
-            res += f"{i+1}.{list(all_plants.items())[i][0]}的售价为{plants_price[i]};\n"
+            res += f"{i + 1}.{list(all_plants.keys())[i]}的售价为{plants_price[i]};\n"
         res += "可以通过关键字'购买'+名称来购买植物"
         draw_test(
             res, (255, 255, 153), Path(
@@ -1211,7 +1229,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
     elif state["type"] == "僵尸":
         res += "当前在售的僵尸为：\n"
         for i in range(len(all_zombie.items())):
-            res += f"{i+1}.{list(all_zombie.keys())[i]}的售价为{zombie_price[i]};\n"
+            res += f"{i + 1}.{list(all_zombie.keys())[i]}的售价为{zombie_price[i]};\n"
         res += "可以通过关键字'购买'+名称来购买僵尸"
         draw_test(
             res, (255, 255, 153), Path(
@@ -1230,10 +1248,10 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 async def _(bot: Bot, event: MessageEvent, state: T_State):
     args = get_message_text(event.json())
     if args and (
-        (args[0] in list(
-            all_plants.keys())) or (
-            args[0] in list(
-                all_zombie.keys()))):
+            (args[0] in list(
+                all_plants.keys())) or (
+                    args[0] in list(
+                        all_zombie.keys()))):
         # 如果附加了所要查看的图鉴则不需要询问
         state["cate"] = args[0]
 
@@ -1241,12 +1259,14 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 @look_pvz.got("cate", prompt="您想要查看哪种植物或者僵尸?如果不知道都有那些名字可以通过'查看商店'来查看")
 async def _(bot: Bot, event: MessageEvent, state: T_State):
     res = ""
+    if not isinstance(state["cate"], str):
+        state["cate"] = str(state["cate"])
     if state["cate"] in list(all_plants.keys()):
         res += f"{state['cate']}的属性如下:\n"
         plt = Plants(all_plants[state["cate"]])
         res += f"生命值为{plt.hp}\n"
         res += f"伤害为{plt.damage}/{plt.damage_interval}s\n"
-        res += f"攻击距离为({plt.damage_distance[0]}, {12 if plt.damage_distance[1]==np.inf else plt.damage_distance[1]})\n"
+        res += f"攻击距离为({plt.damage_distance[0]}, {12 if plt.damage_distance[1] == np.inf else plt.damage_distance[1]})\n"
         res += f"攻击使僵尸的属性为先前的{plt.effect}\n"
         if plt.penetrable:
             res += f"此植物的攻击有穿透效果\n"
@@ -1258,7 +1278,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
             res += f"此植物仅被伽刚特尔伤害\n"
         res += f"购买需要阳光{plt.price}"
         img = MessageSegment.image(
-            "file:///" / PVZ_ORI_PATH / f"{state['cate']}.jpg")
+            "file:///" / PVZ_ORI_PATH / f"{all_plants[state['cate']]}.jpg")
         res = MessageSegment.text(res) + img
     elif state["cate"] in list(all_zombie.keys()):
         res += f"{state['cate']}的属性如下:\n"
@@ -1274,12 +1294,13 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
             res += "该僵尸可以忽视植物攻击带来的效果削弱\n"
         res += f"购买需要阳光{zomb.price}"
         img = MessageSegment.image(
-            "file:///" / PVZ_ORI_PATH / f"{state['cate']}.jpg")
+            "file:///" / PVZ_ORI_PATH / f"{all_zombie[state['cate']]}.jpg")
         res = MessageSegment.text(res) + img
     else:
         res += "不合法输入，可以通过'查看商店'来查询支持的植物或僵尸"
     await asyncio.sleep(1)
     await look_pvz.finish(res, at_sender=True)
+
 
 # 购买--------------------------------------------------------------------------------
 
@@ -1297,10 +1318,10 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
         state["index"] = users_id.index(user_id)
         args = get_message_text(event.json())
         if args and (
-            (args[0] in list(
-                all_plants.keys())) or (
-                args[0] in list(
-                all_zombie.keys()))):
+                (args[0] in list(
+                    all_plants.keys())) or (
+                        args[0] in list(
+                            all_zombie.keys()))):
             # 如果附加了所要购买的植物或者僵尸则不需要询问
             state["cate"] = args[0]
     else:
@@ -1310,6 +1331,8 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 
 @buy.got("cate", prompt="您想要购买哪种植物或者僵尸?如果不知道都有那些名字可以通过'查看商店'来查看")
 async def _(bot: Bot, event: MessageEvent, state: T_State):
+    if not isinstance(state["cate"], str):
+        state["cate"] = str(state["cate"])
     if state["cate"] in list(all_plants.keys()):
         price = plants_price[list(all_plants.keys()).index(state["cate"])]
         if price > int(state["sunshine"]):
@@ -1344,6 +1367,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
         await asyncio.sleep(1)
         await buy.finish("您输入的名称有误，购买失败", at_sender=True)
 
+
 # 放置--------------------------------------------------------------------------------
 
 
@@ -1362,11 +1386,11 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
         _, state["plants"], _, _, _ = users[users_id.index(user_id)]
         args = get_message_text(event.json())
         if args and (
-            (args[0] in list(
-                all_plants.keys())) or (
-                args[0] in list(
-                all_zombie.keys()))):
-            state["cate"] = args[0]
+                (args[0] in list(
+                    all_plants.keys())) or (
+                        args[0] in list(
+                            all_zombie.keys()))):
+            state["cate"] = " ".join(args)
     else:
         await asyncio.sleep(1)
         await buy.finish("您暂未开启草坪，请通过'查看草坪'开启", at_sender=True)
@@ -1376,6 +1400,8 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 async def _(bot: Bot, event: MessageEvent, state: T_State):
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
+    if not isinstance(state["cate"], str):
+        state["cate"] = str(state["cate"])
     temp = state["cate"].split(" ")
     if len(temp) == 2 and 0 < int(temp[1]) <= 6:
         plant, pos = state["cate"].split(" ")
@@ -1391,7 +1417,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
                 if flag:
                     await asyncio.sleep(1)
                     # 获取图片
-                    lawn_pic([all_plants[x] for x in now_pos])
+                    lawn_pic([all_plants[x] for x in now_pos if x != "0"])
                     img = MessageSegment.image(
                         "file:///" / PVZ_OUTPUT_PATH / "output0.png")
                     res = MessageSegment.text(
@@ -1412,6 +1438,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
     else:
         await asyncio.sleep(1)
         await put_on_lawn.finish("输入格式有误，输入样例:'豌豆射手 1'", at_sender=True)
+
 
 # 入侵--------------------------------------------------------------------------------
 
@@ -1442,8 +1469,10 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
         await fight.finish("请至少@一个开启草坪的人来进行入侵", at_sender=True)
 
 
-@fight.got("team", prompt="请尽快选择您要入侵的阵容，多个僵尸中间用空格分割(最多不超过三个)，默认方式为一个一个出场，。例如'普通僵尸 普通僵尸 撑杆僵尸'")
+@fight.got("team", prompt="请尽快选择您要入侵的阵容，多个僵尸中间用空格分割(最多不超过三个)，默认方式为一个一个出场。\n例如'普通僵尸 普通僵尸 撑杆僵尸'")
 async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
+    if not isinstance(state["team"], str):
+        state["team"] = str(state["team"])
     # 获取入侵小队
     zombie_team = state["team"].split(" ")
     bag_zombie = state["bag_zombie"]
@@ -1478,6 +1507,7 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
             # 发送数据
             await bot.send_group_forward_msg(group_id=event.group_id, messages=log)
 
+
 # 植物人机训练--------------------------------------------------------------------------
 
 
@@ -1498,6 +1528,8 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
 
 @play_with_computer_zombie.got("mode", prompt="请选择难度模式，可选择易，中，难,地狱四种不同级别的难度")
 async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
+    if not isinstance(state["mode"], str):
+        state["mode"] = str(state["mode"])
     mode = state["mode"].strip()
     if mode in ["易", "中", "难", "地狱"]:
         if mode == "易":
@@ -1513,7 +1545,8 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
         await bot.send_group_forward_msg(group_id=event.group_id, messages=log)
         await asyncio.sleep(0.5)
         if iswin == 1:
-            await play_with_computer_zombie.finish(f"很遗憾您没能通过难度为{mode}的植物人机训练，此次出场的僵尸阵容为{','.join(zombie_team)}", at_sender=True)
+            await play_with_computer_zombie.finish(f"很遗憾您没能通过难度为{mode}的植物人机训练，此次出场的僵尸阵容为{','.join(zombie_team)}",
+                                                   at_sender=True)
         else:
             await play_with_computer_zombie.finish(f"恭喜您成功通过难度为{mode}的植物人机训练，此次出场的僵尸阵容为{','.join(zombie_team)}",
                                                    at_sender=True)
@@ -1544,6 +1577,8 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
 async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
+    if not isinstance(state["mode"], str):
+        state["mode"] = str(state["mode"])
     mode = state["mode"].strip()
     if mode in ["易", "中", "难", "地狱"]:
         if mode == "易":
@@ -1555,9 +1590,10 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
         else:
             plant_team = ["冰瓜", "玉米投手", "机枪射手", "火炬", "高坚果", "地刺王"]
         state["plants"] = plant_team
-        lawn_pic([all_plants[x] for x in plant_team])
+        lawn_pic([all_plants[x] for x in plant_team if x != "0"])
         await asyncio.sleep(0.5)
-        await play_with_computer_plant.send(MessageSegment.text("本次对抗的草坪阵容为") + MessageSegment.image("file:///" / PVZ_OUTPUT_PATH / "output0.png"))
+        await play_with_computer_plant.send(
+            MessageSegment.text("本次对抗的草坪阵容为") + MessageSegment.image("file:///" / PVZ_OUTPUT_PATH / "output0.png"))
     else:
         await asyncio.sleep(1)
         await play_with_computer_plant.finish("您选择的难度有误，小小垚看不懂，请重新选择", at_sender=True)
@@ -1566,6 +1602,10 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
 @play_with_computer_plant.got("team",
                               prompt="请选择您的僵尸入侵小队，僵尸之间用空格分割，最多选择三个僵尸，例如'普通僵尸 普通僵尸 普通僵尸'")
 async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
+    if not isinstance(state["mode"], str):
+        state["mode"] = str(state["mode"])
+    if not isinstance(state["team"], str):
+        state["team"] = str(state["team"])
     mode = state["mode"].strip()
     zombie_team = state["team"].split(" ")
     bag_zombie = state["zombies"]
@@ -1602,6 +1642,7 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
             await play_with_computer_plant.finish(f"很遗憾您没能通过难度为{mode}的僵尸人机训练",
                                                   at_sender=True)
 
+
 # 帮助---------------------------------------------------------------------------------
 
 
@@ -1637,6 +1678,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
         PVZ_OUTPUT_PATH, "help.png"), Path(FONT_PATH))
     await _help.finish(MessageSegment.image("file:///" / PVZ_OUTPUT_PATH / "help.png"), at_sender=True)
 
+
 # 定时操作，更改签到数据----------------------------------------------------------------
 
 
@@ -1650,6 +1692,7 @@ async def run_every_day_to_reset_signin_data():
         print("********植物大战僵尸签到数据已重置*********")
     else:
         print("********植物大战僵尸签到数据重置失败*********")
+
 
 # 文档操作----------------------------------------------------------------------------
 
