@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD033 MD041 -->
 <p align="center">
-  <img src="http://www.lcgx.space/media//photos/thumbnail/nonebot_plugin_pvz_logo.png" width="450" height="450" alt="nonebot_plugin_pvz">
+  <img src="https://github.com/longchengguxiao/nonebot_plugin_pvz/blob/main/nonebot_plugin_pvz_logo.png" width="450" height="450" alt="nonebot_plugin_pvz">
 </p>
 <div align="center">
 
