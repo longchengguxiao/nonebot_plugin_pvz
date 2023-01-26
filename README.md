@@ -1,6 +1,24 @@
+<div align="center">
+
 # nonebot_plugin_pvz
 
----
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable-next-line MD036 -->
+_✨ 跨平台 Python 异步机器人框架 ✨_
+<!-- prettier-ignore-end -->
+
+</div>
+
+<p align="center">
+    <a href="https://github.com/longchengguxiao/nonebot_plugin_pvz/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/longchengguxiao/nonebot_plugin_pvz" alt="license">
+    </a>
+    <a href="https://pypi.python.org/pypi/nonebot_plugin_pvz">
+    <img src="https://img.shields.io/pypi/v/nonebot_plugin_pvz" alt="pypi">
+    </a>
+    <img src="https://img.shields.io/badge/python-3.8+-blue" alt="python">
+</p>
+
 
 ## 简介
 
@@ -30,7 +48,9 @@ python -m pip install nonebot_plugin_pvz
 ## 详细玩法
 
 ```buildoutcfg
-您可以通过使用关键字'查看背包'或'我的背包'来查看您的背包,首次查看背包可以获得初始奖励以及注册成为用户
+您可以通过关键字'pvz帮助'或'pvz使用说明'或'pvz使用方法'在QQ内查看帮助文档
+
+通过使用关键字'查看背包'或'我的背包'来查看您的背包,首次查看背包可以获得初始奖励以及注册成为用户
 
 通过关键字'pvz签到'或'植物大战僵尸签到',来获取（签到会自动在每天0点重置）
 
@@ -90,7 +110,23 @@ python -m pip install nonebot_plugin_pvz
 > 
 > 地狱："冰瓜", "玉米投手", "机枪射手", "火炬", "高坚果", "地刺王"
 
+## 数据下载以及上传（必看！）
+
+数据下载和上传仅`SUPERUSER`可以使用，**未设置不可使用**，其命令格式如下
+
+> 下载: 'pvz下载数据', 'pvz数据下载', 'pvz保存数据', 'pvz数据保存'
+
+> 上传: 'pvz上传数据', 'pvz数据上传', 'pvz载入数据', 'pvz数据载入'
+
 ## 更新
+
+### v1.2.0
+
++ 2023/01/26 增加数据上传和下载功能，完善帮助
+
+### v1.1.9
+
++ 2023/01/26 修复同一个植物可以被多次放在草坪上的问题。
 
 ### v1.1.6
 
