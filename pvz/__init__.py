@@ -1,6 +1,6 @@
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
-# @Time    : 2023/01/24
+# @Time    : 2023/01/25
 # @Author  : longchengguxiao
 # @File    : nonebot_plugin_pvz
 # @Version : 3.8.9 Python
@@ -9,16 +9,19 @@ from PIL import Image, ImageDraw, ImageFont
 from typing import List, Tuple
 import numpy as np
 from nonebot.typing import T_State
-from nonebot.adapters.onebot.v11 import Bot, MessageSegment, MessageEvent, GroupMessageEvent
+from nonebot.adapters.onebot.v11 import Bot, MessageSegment, MessageEvent, GroupMessageEvent, Message
+from nonebot.params import CommandArg, ArgStr
 from nonebot import on_command
 import nonebot
 from nonebot import require
+from nonebot.permission import SUPERUSER
 from nonebot_plugin_apscheduler import scheduler
 from pathlib import Path
 from collections import Counter
 import json
 import asyncio
 import os
+import shutil
 from .config import Config
 
 # 启动定时器
@@ -62,23 +65,6 @@ def get_message_at(data: str) -> List[int]:
             if msg["type"] == "at":
                 qq_list.append(int(msg["data"]["qq"]))
         return qq_list
-    except KeyError:
-        return []
-
-
-def get_message_text(data: str) -> List[str]:
-    """
-    获取消息中除第一个外的所有纯文本信息
-    :param data: event.json()
-    """
-    try:
-        text = ""
-        data = json.loads(data)
-        for msg in data["message"]:
-            if msg["type"] == "text":
-                text += msg["data"]["text"].strip() + " "
-        text = (text.strip().split())[1:]
-        return text
     except KeyError:
         return []
 
@@ -1074,15 +1060,40 @@ put_on_lawn = on_command("放置", block=True, priority=5)
 play_with_computer_zombie = on_command("植物人机训练", block=True, priority=5)
 play_with_computer_plant = on_command(
     "僵尸人机训练", block=True, priority=5, aliases={"我是僵尸"})
-_help = on_command("植物大战僵尸帮助", aliases={"pvz帮助"}, priority=5, block=True)
+_help = on_command(
+    "植物大战僵尸帮助",
+    aliases={
+        "pvz帮助",
+        "pvz使用说明",
+        "pvz使用方法"},
+    priority=5,
+    block=True)
 fight = on_command("入侵", priority=5, block=True)
 
+download_data = on_command(
+    "pvz下载数据",
+    priority=5,
+    block=True,
+    permission=SUPERUSER,
+    aliases={
+        "pvz保存数据",
+        "pvz数据保存",
+        "pvz数据下载"})
+upload_data = on_command(
+    "pvz载入数据",
+    priority=5,
+    block=True,
+    permission=SUPERUSER,
+    aliases={
+        "pvz上传数据",
+        "pvz数据载入",
+        "pvz数据上传"})
 
 # pvz签到-----------------------------------------------------------------------------
 
 
 @pvz_signin.handle()
-async def _(bot: Bot, event: MessageEvent, state: T_State):
+async def _(event: MessageEvent):
     flag, users = read_data(Path(bag_path))
     users_id = [x[0] for x in users]
     user_id = str(event.user_id)
@@ -1095,7 +1106,6 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
             msg = "今天获得了50阳光，已经放入您的背包"
         else:
             msg = "贪心的人是不会有好远的哦...您今天已经签到过啦！"
-
     else:
         msg = "您暂未注册植物大战僵尸功能，可以通过“查看背包”或“我的背包”来进行注册"
     await pvz_signin.finish(msg, at_sender=True)
@@ -1105,7 +1115,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 
 
 @look_bag.handle()
-async def _(bot: Bot, event: MessageEvent, state: T_State):
+async def _(event: MessageEvent):
     # 读取现有数据
     flag, users = read_data(Path(bag_path))
     users_id = [x[0] for x in users]
@@ -1153,7 +1163,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 
 
 @look_lawn.handle()
-async def _(bot: Bot, event: MessageEvent, state: T_State):
+async def _(event: MessageEvent):
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
     # 读取现有数据
@@ -1217,18 +1227,19 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 
 
 @look_shop.handle()
-async def _(bot: Bot, event: MessageEvent, state: T_State):
-    args = get_message_text(event.json())
-    if args and ((args[0] == "植物") or (args[0] == "僵尸")):
-        state["type"] = args[0]
+async def _(state: T_State, args: Message = CommandArg()):
+    msg = args.extract_plain_text().strip()
+    if msg and ((msg == "植物") or (msg == "僵尸")):
+        state["cate"] = msg
 
 
-@look_shop.got("type", prompt="您想要查看植物还是僵尸?")
-async def _(bot: Bot, event: MessageEvent, state: T_State):
+@look_shop.got("cate", prompt="您想要查看植物还是僵尸?")
+async def _(state: T_State, cate: str = ArgStr("cate")):
     res = ""
-    if not isinstance(state["type"], str):
-        state["type"] = str(state["type"])
-    if state["type"] == "植物":
+    if cate in ["取消", "算了"]:
+        await asyncio.sleep(1)
+        await look_shop.finish("已取消操作...")
+    if cate == "植物":
         res += "当前在售的植物有：\n"
         for i in range(len(all_plants.items())):
             res += f"{i + 1}.{list(all_plants.keys())[i]}的售价为{plants_price[i]};\n"
@@ -1238,7 +1249,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
                 PVZ_OUTPUT_PATH, "plant_store.png"), Path(FONT_PATH))
         await asyncio.sleep(1)
         await look_shop.finish(MessageSegment.image("file:///" / PVZ_OUTPUT_PATH / "plant_store.png"), at_sender=True)
-    elif state["type"] == "僵尸":
+    elif cate == "僵尸":
         res += "当前在售的僵尸为：\n"
         for i in range(len(all_zombie.items())):
             res += f"{i + 1}.{list(all_zombie.keys())[i]}的售价为{zombie_price[i]};\n"
@@ -1257,25 +1268,26 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 
 
 @look_pvz.handle()
-async def _(bot: Bot, event: MessageEvent, state: T_State):
-    args = get_message_text(event.json())
-    if args and (
-            (args[0] in list(
+async def _(state: T_State, args: Message = CommandArg()):
+    msg = args.extract_plain_text().strip()
+    if msg and (
+            (msg in list(
                 all_plants.keys())) or (
-                    args[0] in list(
+                    msg in list(
                         all_zombie.keys()))):
         # 如果附加了所要查看的图鉴则不需要询问
-        state["cate"] = args[0]
+        state["cate"] = msg
 
 
 @look_pvz.got("cate", prompt="您想要查看哪种植物或者僵尸?如果不知道都有那些名字可以通过'查看商店'来查看")
-async def _(bot: Bot, event: MessageEvent, state: T_State):
+async def _(state: T_State, cate: str = ArgStr("cate")):
     res = ""
-    if not isinstance(state["cate"], str):
-        state["cate"] = str(state["cate"])
-    if state["cate"] in list(all_plants.keys()):
-        res += f"{state['cate']}的属性如下:\n"
-        plt = Plants(all_plants[state["cate"]])
+    if cate in ["取消", "算了"]:
+        await asyncio.sleep(1)
+        await look_pvz.finish("已取消操作...")
+    if cate in list(all_plants.keys()):
+        res += f"{cate}的属性如下:\n"
+        plt = Plants(all_plants[cate])
         res += f"生命值为{plt.hp}\n"
         res += f"伤害为{plt.damage}/{plt.damage_interval}s\n"
         res += f"攻击距离为({plt.damage_distance[0]}, {12 if plt.damage_distance[1] == np.inf else plt.damage_distance[1]})\n"
@@ -1290,11 +1302,11 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
             res += f"此植物仅被伽刚特尔伤害\n"
         res += f"购买需要阳光{plt.price}"
         img = MessageSegment.image(
-            "file:///" / PVZ_ORI_PATH / f"{all_plants[state['cate']]}.jpg")
+            "file:///" / PVZ_ORI_PATH / f"{all_plants[cate]}.jpg")
         res = MessageSegment.text(res) + img
-    elif state["cate"] in list(all_zombie.keys()):
-        res += f"{state['cate']}的属性如下:\n"
-        zomb = Zombie(all_zombie[state["cate"]])
+    elif cate in list(all_zombie.keys()):
+        res += f"{cate}的属性如下:\n"
+        zomb = Zombie(all_zombie[cate])
         res += f"生命值为{zomb.hp}\n"
         res += f"伤害为{zomb.damage}/{zomb.damage_interval}s\n"
         res += f"移动速度为{zomb.v}格/s\n"
@@ -1306,7 +1318,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
             res += "该僵尸可以忽视植物攻击带来的效果削弱\n"
         res += f"购买需要阳光{zomb.price}"
         img = MessageSegment.image(
-            "file:///" / PVZ_ORI_PATH / f"{all_zombie[state['cate']]}.jpg")
+            "file:///" / PVZ_ORI_PATH / f"{all_zombie[cate]}.jpg")
         res = MessageSegment.text(res) + img
     else:
         res += "不合法输入，可以通过'查看商店'来查询支持的植物或僵尸"
@@ -1318,7 +1330,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 
 
 @buy.handle()
-async def _(bot: Bot, event: MessageEvent, state: T_State):
+async def _(event: MessageEvent, state: T_State, args: Message = CommandArg()):
     # 获取背包数据
     flag, users = read_data(Path(bag_path))
     users_id = [x[0] for x in users]
@@ -1328,25 +1340,26 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
             user_id)]
         state["users"] = users
         state["index"] = users_id.index(user_id)
-        args = get_message_text(event.json())
-        if args and (
-                (args[0] in list(
+        msg = args.extract_plain_text().strip()
+        if msg and (
+                (msg in list(
                     all_plants.keys())) or (
-                        args[0] in list(
+                        msg in list(
                             all_zombie.keys()))):
             # 如果附加了所要购买的植物或者僵尸则不需要询问
-            state["cate"] = args[0]
+            state["cate"] = msg
     else:
         await asyncio.sleep(1)
         await buy.finish("您暂未开启背包，请通过'查看背包'开启", at_sender=True)
 
 
 @buy.got("cate", prompt="您想要购买哪种植物或者僵尸?如果不知道都有那些名字可以通过'查看商店'来查看")
-async def _(bot: Bot, event: MessageEvent, state: T_State):
-    if not isinstance(state["cate"], str):
-        state["cate"] = str(state["cate"])
-    if state["cate"] in list(all_plants.keys()):
-        price = plants_price[list(all_plants.keys()).index(state["cate"])]
+async def _(state: T_State, cate: str = ArgStr("cate")):
+    if cate in ["取消", "算了"]:
+        await asyncio.sleep(1)
+        await buy.finish("已取消操作...")
+    if cate in list(all_plants.keys()):
+        price = plants_price[list(all_plants.keys()).index(cate)]
         if price > int(state["sunshine"]):
             await asyncio.sleep(1)
             await buy.finish("购买失败，阳光不够")
@@ -1354,27 +1367,27 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
             rest_of_sunshine = int(state["sunshine"]) - price
             users = state["users"]
             # 修改数据
-            users[state["index"]][1] = state["plants"] + f",{state['cate']}"
+            users[state["index"]][1] = state["plants"] + f",{cate}"
             users[state["index"]][3] = str(rest_of_sunshine)
             # 储存
             flag = write_data(Path(bag_path), users)
             if flag:
                 await asyncio.sleep(1)
-                await buy.finish(f"购买成功，{state['cate']}已经放入背包啦！阳光余额为{rest_of_sunshine}", at_sender=True)
-    elif state["cate"] in list(all_zombie.keys()):
-        price = zombie_price[list(all_zombie.keys()).index(state["cate"])]
+                await buy.finish(f"购买成功，{cate}已经放入背包啦！阳光余额为{rest_of_sunshine}", at_sender=True)
+    elif cate in list(all_zombie.keys()):
+        price = zombie_price[list(all_zombie.keys()).index(cate)]
         if price > int(state["sunshine"]):
             await asyncio.sleep(1)
             await buy.finish("购买失败，阳光不够")
         else:
             rest_of_sunshine = int(state["sunshine"]) - price
             users = state["users"]
-            users[state["index"]][2] = state["zombies"] + f",{state['cate']}"
+            users[state["index"]][2] = state["zombies"] + f",{cate}"
             users[state["index"]][3] = str(rest_of_sunshine)
             flag = write_data(Path(bag_path), users)
             if flag:
                 await asyncio.sleep(1)
-                await buy.finish(f"购买成功，{state['cate']}已经放入背包啦！阳光余额为{rest_of_sunshine}", at_sender=True)
+                await buy.finish(f"购买成功，{cate}已经放入背包啦！阳光余额为{rest_of_sunshine}", at_sender=True)
     else:
         await asyncio.sleep(1)
         await buy.finish("您输入的名称有误，购买失败", at_sender=True)
@@ -1384,7 +1397,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 
 
 @put_on_lawn.handle()
-async def _(bot: Bot, event: MessageEvent, state: T_State):
+async def _(event: MessageEvent, state: T_State, args: Message = CommandArg()):
     # 读取数据
     flag, users = read_data(Path(lawn_path))
     users_id = [x[0] for x in users]
@@ -1396,52 +1409,60 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
         # 读取背包数据，用于后续判断
         flag, users = read_data(Path(bag_path))
         _, state["plants"], _, _, _ = users[users_id.index(user_id)]
-        args = get_message_text(event.json())
-        if args and (
-                (args[0] in list(
+        msg = args.extract_plain_text().strip()
+        if msg and (
+                (msg.split(" ")[0] in list(
                     all_plants.keys())) or (
-                        args[0] in list(
+                        msg.split(" ")[0] in list(
                             all_zombie.keys()))):
-            state["cate"] = " ".join(args)
+            state["cate"] = msg
     else:
         await asyncio.sleep(1)
         await buy.finish("您暂未开启草坪，请通过'查看草坪'开启", at_sender=True)
 
 
 @put_on_lawn.got("cate", prompt="您想要放置哪种植物?放在几号位置(1-6)?中间用空格分割")
-async def _(bot: Bot, event: MessageEvent, state: T_State):
+async def _(state: T_State, cate: str = ArgStr("cate")):
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
-    if not isinstance(state["cate"], str):
-        state["cate"] = str(state["cate"])
-    temp = state["cate"].split(" ")
-    if len(temp) == 2 and 0 < int(temp[1]) <= 6:
-        plant, pos = state["cate"].split(" ")
+    if cate in ["取消", "算了"]:
+        await asyncio.sleep(1)
+        await put_on_lawn.finish("已取消操作...")
+    temp = cate.split(" ")
+    if len(temp) == 2 and temp[1] in ["1", "2", "3", "4", "5", "6"]:
+        plant, pos = cate.split(" ")
         pos = int(pos)
         if plant in list(all_plants.keys()):
             now_pos = state["lawn_puts"].split(',')
-            my_plants = state["plants"]
+            my_plants: List = (state["plants"]).split(",")
             if plant in my_plants:
-                users = state["users"]
-                now_pos[pos - 1] = plant
-                users[state["index"]][1] = ",".join(now_pos)
-                flag = write_data(Path(lawn_path), users)
-                if flag:
-                    await asyncio.sleep(1)
-                    # 获取图片
-                    lawn_pic([all_plants[x] for x in now_pos if x != "0"])
-                    img = MessageSegment.image(
-                        "file:///" / PVZ_OUTPUT_PATH / "output0.png")
-                    res = MessageSegment.text(
-                        f"放置成功，您的草坪现在为：\n{','.join(now_pos)}") + img
-                    await put_on_lawn.finish(res, at_sender=True)
+                for p in now_pos:
+                    if p != "0":
+                        my_plants.remove(p)
+                if plant in my_plants:
+                    users = state["users"]
+                    now_pos[pos - 1] = plant
+                    users[state["index"]][1] = ",".join(now_pos)
+                    flag = write_data(Path(lawn_path), users)
+                    if flag:
+                        await asyncio.sleep(1)
+                        # 获取图片
+                        lawn_pic([all_plants[x] for x in now_pos if x != "0"])
+                        img = MessageSegment.image(
+                            "file:///" / PVZ_OUTPUT_PATH / "output0.png")
+                        res = MessageSegment.text(
+                            f"放置成功，您的草坪现在为：\n{','.join(now_pos)}") + img
+                        await put_on_lawn.finish(res, at_sender=True)
+                    else:
+                        await asyncio.sleep(1)
+                        await put_on_lawn.finish("写入文件失败，请联系管理员", at_sender=True)
                 else:
                     await asyncio.sleep(1)
-                    await put_on_lawn.finish("写入文件失败，请联系管理员", at_sender=True)
+                    await put_on_lawn.finish(f"您的背包里没有多余的{plant},请先去购买")
             else:
                 await asyncio.sleep(1)
-                await put_on_lawn.finish("您的背包中没有这种植物哦，请先购买啦", at_sender=True)
-        elif state["cate"] in list(all_zombie.keys()):
+                await put_on_lawn.finish(f"您的背包中没有{plant}哦，请先购买啦", at_sender=True)
+        elif cate in list(all_zombie.keys()):
             await asyncio.sleep(1)
             await put_on_lawn.finish("你想脑子被吃掉吗，哼！", at_sender=True)
         else:
@@ -1456,7 +1477,7 @@ async def _(bot: Bot, event: MessageEvent, state: T_State):
 
 
 @fight.handle()
-async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
+async def _(event: GroupMessageEvent, state: T_State):
     flag, users = read_data(Path(lawn_path))
     users_id = [x[0] for x in users]
     # 获取@对象
@@ -1482,11 +1503,12 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
 
 
 @fight.got("team", prompt="请尽快选择您要入侵的阵容，多个僵尸中间用空格分割(最多不超过三个)，默认方式为一个一个出场。\n例如'普通僵尸 普通僵尸 撑杆僵尸'")
-async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
-    if not isinstance(state["team"], str):
-        state["team"] = str(state["team"])
+async def _(bot: Bot, event: GroupMessageEvent, state: T_State, team: str = ArgStr("team")):
+    if team in ["取消", "算了"]:
+        await asyncio.sleep(1)
+        await fight.finish("已取消操作...")
     # 获取入侵小队
-    zombie_team = state["team"].split(" ")
+    zombie_team = team.split(" ")
     bag_zombie = state["bag_zombie"]
     # 判断入侵模式
     if zombie_team[-1] == "全上":
@@ -1524,14 +1546,14 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
 
 
 @play_with_computer_zombie.handle()
-async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
+async def _(event: GroupMessageEvent, state: T_State, args: Message = CommandArg()):
     flag, users = read_data(Path(lawn_path))
     users_id = [x[0] for x in users]
     user_id = str(event.user_id)
     if user_id in users_id:
-        args = get_message_text(event.json())
-        if args and args[0] in ["易", "中", "难", "地狱"]:
-            state["mode"] = args[0]
+        msg = args.extract_plain_text().strip()
+        if msg and msg in ["易", "中", "难", "地狱"]:
+            state["mode"] = msg
         state["lawn"] = (users[users_id.index(user_id)][1]).split(",")
         if len(set(state["lawn"])) == 1 and set(state["lawn"]).pop() == "0":
             await asyncio.sleep(1)
@@ -1542,10 +1564,10 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
 
 
 @play_with_computer_zombie.got("mode", prompt="请选择难度模式，可选择易，中，难,地狱四种不同级别的难度")
-async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
-    if not isinstance(state["mode"], str):
-        state["mode"] = str(state["mode"])
-    mode = state["mode"].strip()
+async def _(bot: Bot, event: GroupMessageEvent, state: T_State, mode: str = ArgStr("mode")):
+    if mode in ["取消", "算了"]:
+        await asyncio.sleep(1)
+        await play_with_computer_zombie.finish("已取消操作...")
     if mode in ["易", "中", "难", "地狱"]:
         if mode == "易":
             zombie_team = ["路障僵尸", "普通僵尸", "小鬼僵尸"]
@@ -1574,14 +1596,14 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
 
 
 @play_with_computer_plant.handle()
-async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
+async def _(event: GroupMessageEvent, state: T_State, args: Message = CommandArg()):
     flag, users = read_data(Path(bag_path))
     users_id = [x[0] for x in users]
     user_id = str(event.user_id)
     if user_id in users_id:
-        args = get_message_text(event.json())
-        if args and args[0] in ["易", "中", "难", "地狱"]:
-            state["mode"] = args[0]
+        msg = args.extract_plain_text().strip()
+        if msg and msg in ["易", "中", "难", "地狱"]:
+            state["mode"] = msg
         state["zombies"] = (users[users_id.index(user_id)][2]).split(",")
     else:
         await asyncio.sleep(1)
@@ -1589,12 +1611,12 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
 
 
 @play_with_computer_plant.got("mode", prompt="请选择难度模式，可选择易，中，难,地狱四种不同级别的难度")
-async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
+async def _(state: T_State, mode: str = ArgStr("mode")):
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
-    if not isinstance(state["mode"], str):
-        state["mode"] = str(state["mode"])
-    mode = state["mode"].strip()
+    if mode in ["取消", "算了"]:
+        await asyncio.sleep(1)
+        await play_with_computer_plant.finish("已取消操作...")
     if mode in ["易", "中", "难", "地狱"]:
         if mode == "易":
             plant_team = ["寒冰射手", "豌豆射手", "0", "0", "0", "0"]
@@ -1607,6 +1629,7 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
         state["plants"] = plant_team
         lawn_pic([all_plants[x] for x in plant_team if x != "0"])
         await asyncio.sleep(0.5)
+        state["mode"] = mode
         await play_with_computer_plant.send(
             MessageSegment.text("本次对抗的草坪阵容为") + MessageSegment.image("file:///" / PVZ_OUTPUT_PATH / "output0.png"))
     else:
@@ -1616,13 +1639,12 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
 
 @play_with_computer_plant.got("team",
                               prompt="请选择您的僵尸入侵小队，僵尸之间用空格分割，最多选择三个僵尸，例如'普通僵尸 普通僵尸 普通僵尸'")
-async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
-    if not isinstance(state["mode"], str):
-        state["mode"] = str(state["mode"])
-    if not isinstance(state["team"], str):
-        state["team"] = str(state["team"])
-    mode = state["mode"].strip()
-    zombie_team = state["team"].split(" ")
+async def _(bot: Bot, event: GroupMessageEvent, state: T_State, team: str = ArgStr("team")):
+    mode = state["mode"]
+    if team in ["取消", "算了"]:
+        await asyncio.sleep(1)
+        await play_with_computer_plant.finish("已取消操作...")
+    zombie_team = team.split(" ")
     bag_zombie = state["zombies"]
     result1 = dict(Counter(bag_zombie))
     result2 = dict(Counter(zombie_team))
@@ -1662,37 +1684,85 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State):
 
 
 @_help.handle()
-async def _(bot: Bot, event: MessageEvent, state: T_State):
+async def _():
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
-    res = "欢迎了解植物大战僵尸v1.0.0\n" \
+    res = "欢迎了解植物大战僵尸v1.2.0\n\n" \
+          "**************************************************\n\n" \
+          "您可以通过使用关键字'查看背包'来查看您的背包\n\n" \
           "**************************************************\n" \
-          "您可以通过使用关键字'查看背包'来查看您的背包\n" \
+          "通过关键字'查看商店',来查看当前售卖的植物或者僵尸及其价格\n例如'查看商店 植物'\n\n" \
+          "**************************************************\n\n" \
+          "通过关键字'购买'+名称来购买植物或者僵尸\n例如'购买 豌豆射手'\n\n" \
+          "**************************************************\n\n" \
+          "通过关键字'查看图鉴'+名称来查看某种植物或僵尸的具体属性\n例如'查看图鉴 豌豆射手'\n\n" \
+          "**************************************************\n\n" \
+          "通过关键字'放置'来将背包内的植物放在草坪上以抵御僵尸的攻势\n\n" \
+          "**************************************************\n\n" \
+          "通过关键字'植物人机训练'来进行模拟入侵\n\n" \
+          "**************************************************\n\n" \
+          "通过关键字'僵尸人机训练'来进行模拟防御\n\n" \
           "**************************************************\n" \
-          "通过关键字'查看商店',来查看当前售卖的植物或者僵尸及其价格\n例如'查看商店 植物'\n" \
-          "**************************************************\n" \
-          "通过关键字'购买'+名称来购买植物或者僵尸\n例如'购买 豌豆射手'\n" \
-          "**************************************************\n" \
-          "通过关键字'查看图鉴'+名称来查看某种植物或僵尸的具体属性\n例如'查看图鉴 豌豆射手'\n" \
-          "**************************************************\n" \
-          "通过关键字'放置'来将背包内的植物放在草坪上以抵御僵尸的攻势\n" \
-          "**************************************************\n" \
-          "通过关键字'植物人机训练'来进行模拟入侵\n" \
-          "**************************************************\n" \
-          "通过关键字'僵尸人机训练'来进行模拟防御\n" \
-          "**************************************************\n" \
-          "通过'查看草坪'来查看自己的草坪，或者@一个已经开启草坪的玩家来查看他的草坪\n例如'查看草坪 @龙城孤笑'\n" \
-          "**************************************************\n" \
-          "通过'入侵'来操纵你的僵尸摧毁他人的防御\n例如'入侵 @龙城孤笑'\n" \
-          "**************************************************\n" \
-          "总之，在植物大战僵尸的世界中，祝你玩得开心，享受这个过程！\n\n" \
-          "插件中所有数据以及图片来源于 ’植物大战僵尸吧‘ 提供的全图鉴中v3.6.0，在此由衷感谢数据支持。\n\n" \
+          "通过'查看草坪'来查看自己的草坪，或者@一个已经开启草坪的玩家来查看他的草坪\n例如'查看草坪 @龙城孤笑'\n\n" \
+          "**************************************************\n\n" \
+          "通过'入侵'来操纵你的僵尸摧毁他人的防御\n例如'入侵 @龙城孤笑'\n\n" \
+          "**************************************************\n\n" \
+          "管理员在使用前请务必仔细看文档，在更新插件之前请下载数据，以免数据丢失\n\n"\
+          "**************************************************\n\n" \
+          "总之，在植物大战僵尸的世界中，祝你玩得开心，享受这个过程！\n\n\n" \
+          "插件中所有数据以及图片来源于 ’植物大战僵尸吧‘ 提供的全图鉴中v3.6.0，在此由衷感谢数据支持。\n\n\n" \
           "Create by longchengguxiao"
     await asyncio.sleep(1)
     draw_test(res, (255, 255, 153), Path(
         PVZ_OUTPUT_PATH, "help.png"), Path(FONT_PATH))
-    await _help.finish(MessageSegment.image("file:///" / PVZ_OUTPUT_PATH / "help.png"), at_sender=True)
+    await _help.finish(
+        MessageSegment.image("file:///" / PVZ_OUTPUT_PATH / "help.png") + MessageSegment.text("建议使用前阅读更详细的命令https://github.com/longchengguxiao/nonebot_plugin_pvz#%E5%91%BD%E4%BB%A4%E8%AF%A6%E8%A7%A3"), at_sender=True)
 
+# 数据的上传与下载--------------------------------------------------------------------
+
+
+@download_data.handle()
+async def _():
+    await asyncio.sleep(1)
+    await download_data.send("收到请求")
+    await asyncio.sleep(1)
+
+
+@download_data.got("for_sure",
+                   prompt="本功能常用于更新包前的数据下载，请再次确认下载数据吗，这将会覆盖当前本地储存数据，回复'算了'或'取消'来取消操作")
+async def _(for_sure: str = ArgStr("for_sure")):
+    if for_sure in ["算了", "取消"]:
+        await download_data.finish("取消下载数据")
+    target_path = os.path.expanduser(
+        os.path.join('~', '.nonebot_plugin_pvz')
+    )
+    if not os.path.exists(target_path):
+        os.makedirs(target_path)
+    shutil.copyfile(Path(bag_path), os.path.join(target_path, 'bag.txt'))
+    shutil.copyfile(Path(lawn_path), os.path.join(target_path, 'lawn.txt'))
+    await download_data.finish("pvz用户数据已经成功保存")
+
+
+@upload_data.handle()
+async def _():
+    await asyncio.sleep(1)
+    await download_data.send("收到请求")
+    await asyncio.sleep(1)
+
+
+@upload_data.got("for_sure",
+                 prompt="本功能常用于更新包后的数据载入，请再次确认上传数据吗，这将会覆盖当前安装包内数据，回复'算了'或'取消'来取消操作")
+async def _(for_sure: str = ArgStr("for_sure")):
+    if for_sure in ["算了", "取消"]:
+        await download_data.finish("取消下载数据")
+    src_path = os.path.expanduser(
+        os.path.join('~', '.nonebot_plugin_pvz')
+    )
+    if not os.path.exists(src_path):
+        await upload_data.finish("未发现本地缓存的pvz用户数据，请先使用命令'pvz下载数据'后上传")
+    shutil.copyfile(os.path.join(src_path, 'bag.txt'), Path(bag_path))
+    shutil.copyfile(os.path.join(src_path, 'lawn.txt'), Path(lawn_path))
+    await download_data.finish("pvz用户数据已经成功保存")
 
 # 定时操作，更改签到数据----------------------------------------------------------------
 
