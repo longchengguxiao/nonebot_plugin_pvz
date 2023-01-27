@@ -47,7 +47,6 @@ python -m nb_cli plugin install nonebot_plugin_pvz
 
 或从 PyPI 安装
 python -m pip install nonebot_plugin_pvz
-
 ```
 
 ## 使用
@@ -56,11 +55,13 @@ python -m pip install nonebot_plugin_pvz
 在bot.py 中添加nonebot.load_plugin("nonebot_plugin_pvz")
 
 以及配置好nonebot_plugin_apscheduler,否则签到任务无法顺利执行
-
 ```
 配置部分可以参考[nonebot文档](https://v2.nonebot.dev/docs/advanced/scheduler)
 
 ## 详细玩法
+
+<details>
+<summary>展开/收起</summary>
 
 ```buildoutcfg
 您可以通过关键字'pvz帮助'或'pvz使用说明'或'pvz使用方法'在QQ内查看帮助文档
@@ -86,10 +87,14 @@ python -m pip install nonebot_plugin_pvz
 通过'入侵'来操纵你的僵尸摧毁他人的防御,例如'入侵 @龙城孤笑'
 
 总之，在植物大战僵尸的世界中，祝你玩得开心，享受这个过程！
-
 ```
 
+</details>
+
 ## 命令详解
+
+<details>
+<summary>展开/收起</summary>
 
 |  命令  |  格式（逗号分割）  |  命令样例（不需要引号）  |  返回和解释  |
 |  ----  |  ----  |  ----  |  ----  |
@@ -103,7 +108,12 @@ python -m pip install nonebot_plugin_pvz
 |  植物人机训练  | 植物人机训练+空格+难度 | '植物人机训练 难' | 在已经摆放好植物的你的草坪上进行模拟入侵，僵尸为预设的四个难度，返回一个合并转发文字，包含战斗细节 |
 |  僵尸人机训练  | 僵尸人机训练+空格+难度 | '僵尸人机训练 难' | 使用背包中的僵尸来测试僵尸入侵阵容强度，植物为预设的四个难度，返回一个合并转发文字，包含战斗细节 |
 
+</details>
+
 ## 人机训练难度详解
+
+<details>
+<summary>展开/收起</summary>
 
 ### 植物人机
 
@@ -125,6 +135,8 @@ python -m pip install nonebot_plugin_pvz
 > 
 > 地狱："冰瓜", "玉米投手", "机枪射手", "火炬", "高坚果", "地刺王"
 
+</details>
+
 ## 数据下载以及上传（必看！）
 
 数据下载和上传仅`SUPERUSER`可以使用，**未设置不可使用**，其命令格式如下
@@ -135,9 +147,12 @@ python -m pip install nonebot_plugin_pvz
 
 ## 更新
 
+<details>
+<summary>展开/收起</summary>
+
 ### v1.2.1
 
-+ 2023/01/27 修改入侵部分的逻辑 
++ 2023/01/27 修改入侵部分的逻辑
   
 + 修复跳跳僵尸的漏洞
     + 修复跳跳僵尸起跳过程中无法受到伤害的问题
@@ -193,6 +208,8 @@ python -m pip install nonebot_plugin_pvz
 ### v0.8.0
 
 + 2022/06/01 基础代码完成，功能接近完善
+
+</details>
 
 ## 自定义配置
 
