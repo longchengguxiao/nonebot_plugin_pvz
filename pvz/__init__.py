@@ -1,6 +1,6 @@
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
-# @Time    : 2023/01/25
+# @Time    : 2023/01/27
 # @Author  : longchengguxiao
 # @File    : nonebot_plugin_pvz
 # @Version : 3.8.9 Python
@@ -34,8 +34,19 @@ require("nonebot_plugin_apscheduler")
 
 global_config = nonebot.get_driver().config
 pvz_config = Config.parse_obj(global_config.dict())
-pvz_basic_path = pvz_config.pvz_basic_path / \
-    os.path.dirname(os.path.abspath(__file__))
+pvz_basic_path = pvz_config.pvz_basic_path
+
+if pvz_basic_path != Path() and not os.path.exists(os.path.join(pvz_basic_path, 'font', 'msyh.ttf')):
+    shutil.copytree(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'font'),
+                    os.path.join(pvz_basic_path, 'font'), dirs_exist_ok=True)
+    shutil.copytree(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'images'),
+                    os.path.join(pvz_basic_path, 'images'), dirs_exist_ok=True)
+    shutil.copytree(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'user_data'),
+                    os.path.join(pvz_basic_path, 'user_data'), dirs_exist_ok=True)
+
+if pvz_basic_path == Path():
+    pvz_basic_path = pvz_basic_path / os.path.dirname(os.path.abspath(__file__))
+
 
 bag_path = pvz_basic_path / "user_data" / "bag.txt"
 lawn_path = pvz_basic_path / "user_data" / "lawn.txt"
@@ -45,6 +56,7 @@ FONT_PATH = pvz_basic_path / "font" / "msyh.ttf"
 PVZ_IMAGE_PATH = pvz_basic_path / 'images' / 'pvz' / 'base'
 PVZ_OUTPUT_PATH = pvz_basic_path / 'images' / 'pvz' / 'output'
 PVZ_ORI_PATH = pvz_basic_path / 'images' / 'pvz' / 'ori'
+
 
 STATE_OK = True
 STATE_ERROR = False
@@ -97,6 +109,7 @@ class Plants():  # 植物类
         self.penetrable = 0
         self.only_hurt_by_boss = 0
         self.only_hurt_metal = 0
+        self.unjumpable = 0
 
         # 豌豆射手
         if plantname == "pea_shooter":
@@ -328,6 +341,7 @@ class Plants():  # 植物类
         self.penetrable = 0
         self.only_hurt_by_boss = 0
         self.only_hurt_metal = 0
+        self.unjumpable = 1
 
     def cabbage_pult(self):
         """
@@ -780,9 +794,13 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
         while zb.hp > all_damage:
             # 计算当前僵尸距每个植物的距离
             distance = [dist - pos for pos in plant_pos if pos < dist]
+            if not distance:
+                iswin = 1
+                break
             # 以0.5为僵尸的攻击距离
             if min(distance) > 0.5 or (lawn_plants[distance.index(
                     min(distance))].only_hurt_by_boss == 1 and zb.is_gargantuar == 0):
+                # 此时僵尸攻击不到植物，仅植物攻击僵尸
                 # 距离递减
                 dist -= zb.v * 0.5
                 # 计算植物伤害
@@ -797,6 +815,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                 # 记录总伤害，便于打印日志
                 all_damage += damage
             else:
+                # 此时植物和僵尸可以互相攻击
                 # 当前目标植物
                 tar = distance.index(min(distance))
                 # 变成战斗状态
@@ -828,15 +847,9 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                     fight_time += 0.5
                 # 判断僵尸是否可以跳过植物
                 if zb.jump:
-                    # 距离递减
-                    dist -= 1
-                    # 生成图片
-                    lawn_pic([all_plants[x] for x in plants if x != "0"], cnt)
-                    zombie_pic(all_zombie[zombie], dist, cnt)
-                    # 如果是跳跳僵尸则不会失去下一次跳跃的功能
-                    if zb.v == 0.4:
+                    if lawn_plants[tar].unjumpable == 1:
                         zb.jump = 0
-                        zb.v = 0.2
+                        zb.v = zb.v/2
                         log.append({
                             "type": "node",
                             "data": {
@@ -846,44 +859,69 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                                     {
                                         "type": "text",
                                         "data": {
-                                            "text": f"时间{time},{zombie}被植物阻挡后起跳，撑杆掉落，速度减半"
+                                            "text": f"时间{time},{zombie}被高坚果阻挡后无法起跳，撑杆掉落，速度减半"
                                         }
                                     },
-                                    {
-                                        "type": "image",
-                                        "data": {
-                                            "file": f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"
-                                        }
-                                    }
                                 ]
                             }
-                        }
-                        )
+                        })
                     else:
-                        # 如果是跳跳僵尸，则可以继续跳过，同时失去攻击机会
-                        log.append({
-                            "type": "node",
-                            "data": {
-                                "name": "疯狂戴夫",
-                                "uin": "1298919732",
-                                "content": [
-                                    {
-                                        "type": "text",
-                                        "data": {
-                                            "text": f"时间{time},{zombie}被植物阻挡后起跳,同时企图继续跳过其他植物"
+                        # 距离递减
+                        dist -= 1
+                        # 生成图片
+                        lawn_pic([all_plants[x] for x in plants if x != "0"], cnt)
+                        zombie_pic(all_zombie[zombie], dist, cnt)
+                        # 如果是跳跳僵尸则不会失去下一次跳跃的功能
+                        if zb.v == 0.4:
+                            zb.jump = 0
+                            zb.v = 0.2
+                            log.append({
+                                "type": "node",
+                                "data": {
+                                    "name": "疯狂戴夫",
+                                    "uin": "1298919732",
+                                    "content": [
+                                        {
+                                            "type": "text",
+                                            "data": {
+                                                "text": f"时间{time},{zombie}被植物阻挡后起跳，撑杆掉落，速度减半"
+                                            }
+                                        },
+                                        {
+                                            "type": "image",
+                                            "data": {
+                                                "file": f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"
+                                            }
                                         }
-                                    },
-                                    {
-                                        "type": "image",
-                                        "data": {
-                                            "file": f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"
-                                        }
-                                    }
-                                ]
+                                    ]
+                                }
                             }
-                        }
-                        )
-                        continue
+                            )
+                        else:
+                            # 如果是跳跳僵尸，则可以继续跳过，同时失去攻击机会
+                            log.append({
+                                "type": "node",
+                                "data": {
+                                    "name": "疯狂戴夫",
+                                    "uin": "1298919732",
+                                    "content": [
+                                        {
+                                            "type": "text",
+                                            "data": {
+                                                "text": f"时间{time},{zombie}被植物阻挡后起跳,同时企图继续跳过其他植物"
+                                            }
+                                        },
+                                        {
+                                            "type": "image",
+                                            "data": {
+                                                "file": f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                            )
+                        cnt += 1
                     # 判断当前目标
                     if tar > 0:
                         lawn_plants[tar - 1].hp -= zb.damage
@@ -930,7 +968,7 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                             "data": {
                                 "name": "疯狂戴夫",
                                 "uin": "1298919732",
-                                "content": f"时间{time},{zombie}对{plants[tar]}造成{zb.damage}点伤害。两次攻击间植物合计对{zombie}造成{all_damage}点伤害,{zombie}剩余血量为{zb.hp - all_damage}"
+                                "content": f"时间{time},{zombie}对{plants[tar]}造成{zb.damage if zb.jump == 0 else 0}点伤害。两次攻击间植物合计对{zombie}造成{all_damage}点伤害,{zombie}剩余血量为{zb.hp - all_damage}"
                             }
                         }
                         )
@@ -1687,7 +1725,7 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State, team: str = ArgS
 async def _():
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
-    res = "欢迎了解植物大战僵尸v1.2.0\n\n" \
+    res = "欢迎了解植物大战僵尸v1.2.1\n\n" \
           "**************************************************\n\n" \
           "您可以通过使用关键字'查看背包'来查看您的背包\n\n" \
           "**************************************************\n" \
@@ -1710,7 +1748,7 @@ async def _():
           "管理员在使用前请务必仔细看文档，在更新插件之前请下载数据，以免数据丢失\n\n"\
           "**************************************************\n\n" \
           "总之，在植物大战僵尸的世界中，祝你玩得开心，享受这个过程！\n\n\n" \
-          "插件中所有数据以及图片来源于 ’植物大战僵尸吧‘ 提供的全图鉴中v3.6.0，在此由衷感谢数据支持。\n\n\n" \
+          "插件中所有数据以及图片来源于 ’植物大战僵尸吧‘ 提供的全图鉴中v3.6.0，\n在此由衷感谢数据支持。\n\n\n" \
           "Create by longchengguxiao"
     await asyncio.sleep(1)
     draw_test(res, (255, 255, 153), Path(
