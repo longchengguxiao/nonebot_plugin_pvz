@@ -8,7 +8,7 @@
 
 <!-- prettier-ignore-start -->
 <!-- markdownlint-disable-next-line MD036 -->
-_✨ 跨平台 Python 异步机器人框架 ✨_
+_✨ 基于nonebot的植物大战僵尸插件 ✨_
 <!-- prettier-ignore-end -->
 
 </div>
@@ -135,6 +135,17 @@ python -m pip install nonebot_plugin_pvz
 
 ## 更新
 
+### v1.2.1
+
++ 2023/01/27 修改入侵部分的逻辑 
+  
++ 修复跳跳僵尸的漏洞
+    + 修复跳跳僵尸起跳过程中无法受到伤害的问题
+    + 修复跳跳僵尸在起跳时无法被高坚果挡下的问题
+    + 修复跳跳僵尸起跳过程中生成图片错误的问题
+    
++ 2023/01/27 完善配置路径功能，会在插件启动时将文件复制到指定目录
+
 ### v1.2.0
 
 + 2023/01/26 增加数据上传和下载功能，完善帮助
@@ -186,7 +197,7 @@ python -m pip install nonebot_plugin_pvz
 ## 自定义配置
 
 ```buildoutcfg
-对Python编程比较熟悉的使用者可以在 .env 文件中设置PVZ_BASIC_PATH来选择图片输出路径（以及其他图片路径，请注意设置此选项之后需要重新下载资源，其位于项目/nonebot_plugin_pvz下的font，image以及user_data）
+对Python编程比较熟悉的使用者可以在 .env 文件中设置PVZ_BASIC_PATH来选择图片输出路径，缓存数据将在第一次搭建运行时复制到指定目录下
 
 默认位置为''，即库的安装位置处，可以在环境中的site-packages中找到。
 
