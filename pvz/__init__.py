@@ -1,6 +1,6 @@
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
-# @Time    : 2023/01/27
+# @Time    : 2023/01/29
 # @Author  : longchengguxiao
 # @File    : nonebot_plugin_pvz
 # @Version : 3.8.9 Python
@@ -15,7 +15,6 @@ from nonebot import on_command
 import nonebot
 from nonebot import require
 from nonebot.permission import SUPERUSER
-from nonebot_plugin_apscheduler import scheduler
 from pathlib import Path
 from collections import Counter
 import json
@@ -24,10 +23,10 @@ import os
 import shutil
 from .config import Config
 
-# 启动定时器
-
+# 启动定时器----------------------------------------------------------------------------
 
 require("nonebot_plugin_apscheduler")
+from nonebot_plugin_apscheduler import scheduler
 
 # 配置地址--------------------------------------------------------------------------------
 
@@ -1143,7 +1142,7 @@ async def _(event: MessageEvent):
             flag = write_data(Path(bag_path), users)
             msg = "今天获得了50阳光，已经放入您的背包"
         else:
-            msg = "贪心的人是不会有好远的哦...您今天已经签到过啦！"
+            msg = "贪心的人是不会有好运的哦...您今天已经签到过啦！"
     else:
         msg = "您暂未注册植物大战僵尸功能，可以通过“查看背包”或“我的背包”来进行注册"
     await pvz_signin.finish(msg, at_sender=True)
@@ -1192,7 +1191,7 @@ async def _(event: MessageEvent):
         flag = write_data(Path(bag_path), users)
         await asyncio.sleep(1)
         if flag:
-            await look_bag.finish("恭喜您第一次开启背包，自动自动赠送一个豌豆射手和普通僵尸，可以通过签到来获取每天的100阳光哦", at_sender=True)
+            await look_bag.finish("恭喜您第一次开启背包，自动赠送一个豌豆射手和普通僵尸，可以通过签到来获取每天的100阳光哦", at_sender=True)
         else:
             await look_bag.finish("写入文件出错，请联系管理员")
 
@@ -1397,6 +1396,12 @@ async def _(state: T_State, cate: str = ArgStr("cate")):
         await asyncio.sleep(1)
         await buy.finish("已取消操作...")
     if cate in list(all_plants.keys()):
+        if not isinstance(state["plants"], str):
+            plants_in_bag = str(state["plants"]).split(",")
+        else:
+            plants_in_bag = state["plants"].split(",")
+        if cate in plants_in_bag and plants_in_bag.count(cate) >= 6:
+            await buy.finish(f"您背包中的{cate}个数大于等于6，请不要在购买啦！")
         price = plants_price[list(all_plants.keys()).index(cate)]
         if price > int(state["sunshine"]):
             await asyncio.sleep(1)
@@ -1413,6 +1418,12 @@ async def _(state: T_State, cate: str = ArgStr("cate")):
                 await asyncio.sleep(1)
                 await buy.finish(f"购买成功，{cate}已经放入背包啦！阳光余额为{rest_of_sunshine}", at_sender=True)
     elif cate in list(all_zombie.keys()):
+        if not isinstance(state["zombies"], str):
+            zombies_in_bag = str(state["zombies"]).split(",")
+        else:
+            zombies_in_bag = state["zombies"].split(",")
+        if cate in zombies_in_bag and zombies_in_bag.count(cate) >= 3:
+            await buy.finish(f"您背包中的{cate}个数大于等于3，请不要在购买啦！")
         price = zombie_price[list(all_zombie.keys()).index(cate)]
         if price > int(state["sunshine"]):
             await asyncio.sleep(1)
@@ -1476,7 +1487,7 @@ async def _(state: T_State, cate: str = ArgStr("cate")):
             if plant in my_plants:
                 for p in now_pos:
                     if p != "0":
-                        my_plants.remove(p)
+                        my_plants.pop(my_plants.index(p))
                 if plant in my_plants:
                     users = state["users"]
                     now_pos[pos - 1] = plant
@@ -1530,8 +1541,11 @@ async def _(event: GroupMessageEvent, state: T_State):
             else:
                 state["lawn"] = lawn
                 flag, users_2 = read_data(Path(bag_path))
-                state["bag_zombie"] = users_2[users_id.index(
-                    str(event.user_id))][2].split(",")
+                if users_id in [x[0] for x in users_2]:
+                    state["bag_zombie"] = users_2[users_id.index(
+                        str(event.user_id))][2].split(",")
+                else:
+                    await fight.finish("您暂未开启背包，请先开启背包", at_sender=True)
         else:
             await asyncio.sleep(1)
             await fight.finish("您要入侵的人并没有开启草坪，快去邀请他吧~", at_sender=True)
@@ -1601,7 +1615,7 @@ async def _(event: GroupMessageEvent, state: T_State, args: Message = CommandArg
         await play_with_computer_zombie.finish("您暂未开启草坪,请通过'查看草坪'来开启", at_sender=True)
 
 
-@play_with_computer_zombie.got("mode", prompt="请选择难度模式，可选择易，中，难,地狱四种不同级别的难度")
+@play_with_computer_zombie.got("mode", prompt="请选择难度模式，可选择易，中，难，地狱四种不同级别的难度")
 async def _(bot: Bot, event: GroupMessageEvent, state: T_State, mode: str = ArgStr("mode")):
     if mode in ["取消", "算了"]:
         await asyncio.sleep(1)
@@ -1648,7 +1662,7 @@ async def _(event: GroupMessageEvent, state: T_State, args: Message = CommandArg
         await play_with_computer_plant.finish("您暂未开启背包,请通过'查看背包'来开启", at_sender=True)
 
 
-@play_with_computer_plant.got("mode", prompt="请选择难度模式，可选择易，中，难,地狱四种不同级别的难度")
+@play_with_computer_plant.got("mode", prompt="请选择难度模式，可选择易，中，难，地狱四种不同级别的难度")
 async def _(state: T_State, mode: str = ArgStr("mode")):
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
@@ -1725,11 +1739,11 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State, team: str = ArgS
 async def _():
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
-    res = "欢迎了解植物大战僵尸v1.2.1\n\n" \
+    res = "欢迎了解植物大战僵尸v1.2.3\n\n" \
           "**************************************************\n\n" \
           "您可以通过使用关键字'查看背包'来查看您的背包\n\n" \
           "**************************************************\n" \
-          "通过关键字'查看商店',来查看当前售卖的植物或者僵尸及其价格\n例如'查看商店 植物'\n\n" \
+          "通过关键字'查看商店',来查看当前售卖的植物或者僵尸及其价格（植物最多购买六个,僵尸购买三个）\n例如'查看商店 植物'\n\n" \
           "**************************************************\n\n" \
           "通过关键字'购买'+名称来购买植物或者僵尸\n例如'购买 豌豆射手'\n\n" \
           "**************************************************\n\n" \
@@ -1754,7 +1768,7 @@ async def _():
     draw_test(res, (255, 255, 153), Path(
         PVZ_OUTPUT_PATH, "help.png"), Path(FONT_PATH))
     await _help.finish(
-        MessageSegment.image("file:///" / PVZ_OUTPUT_PATH / "help.png") + MessageSegment.text("建议使用前阅读更详细的命令https://github.com/longchengguxiao/nonebot_plugin_pvz#%E5%91%BD%E4%BB%A4%E8%AF%A6%E8%A7%A3"), at_sender=True)
+        MessageSegment.image("file:///" / PVZ_OUTPUT_PATH / "help.png") + MessageSegment.text("建议使用前阅读更详细的命令https://longchengguxiao.github.io/plugindoc/#/nonebot_plugin_pvz/README"), at_sender=True)
 
 # 数据的上传与下载--------------------------------------------------------------------
 
