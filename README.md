@@ -47,6 +47,14 @@ python -m nb_cli plugin install nonebot_plugin_pvz
 
 或从 PyPI 安装
 python -m pip install nonebot_plugin_pvz
+
+本地安装
+
+将下载的源文件保存在你环境的\Lib\site-packages目录下使用命令
+
+pip install nonebot_plugin_pvz-1.2.6-py3-none-any.whl 
+
+此处的包名应该替换为你下载的包名
 ```
 
 ## 使用
@@ -74,6 +82,14 @@ python -m pip install nonebot_plugin_pvz
 
 <details>
 <summary>展开/收起</summary>
+
+### v1.2.6
+
++ 2023/01/31 合并转发优化，优化代码结构
+
++ 2023/01/31 新增植物阵容评级功能，并且能够在当前所有用户中给出阵容强度排名
+
++ 2023/01/31 未配适1.2.6以上版本的lawn.txt文件将会自动更新
 
 ### v1.2.3
 
