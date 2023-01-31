@@ -1,12 +1,13 @@
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
-# @Time    : 2023/01/29
+# @Time    : 2023/01/27
 # @Author  : longchengguxiao
 # @File    : nonebot_plugin_pvz
 # @Version : 3.8.9 Python
 
+from nonebot_plugin_apscheduler import scheduler
 from PIL import Image, ImageDraw, ImageFont
-from typing import List, Tuple
+from typing import List, Tuple, Union
 import numpy as np
 from nonebot.typing import T_State
 from nonebot.adapters.onebot.v11 import Bot, MessageSegment, MessageEvent, GroupMessageEvent, Message
@@ -22,11 +23,48 @@ import asyncio
 import os
 import shutil
 from .config import Config
+import random
+from nonebot.log import logger
 
 # 启动定时器----------------------------------------------------------------------------
 
+
 require("nonebot_plugin_apscheduler")
-from nonebot_plugin_apscheduler import scheduler
+
+# 文档操作----------------------------------------------------------------------------
+
+
+def write_data(path: Path, data: list) -> bool:
+    try:
+        if data:
+            flag = 0
+            for info in data:
+                if flag == 0:
+                    with open(path, 'w', encoding='utf-8') as f:
+                        f.write(' '.join(info))
+                    flag = 1
+                elif flag == 1:
+                    with open(path, 'a', encoding='utf-8') as f:
+                        f.write('\n' + (' '.join(info)))
+        else:
+            with open(path, 'w') as f:
+                f.write('')
+        return STATE_OK
+    except Exception as e:
+        logger.error(e)
+        return STATE_ERROR
+
+
+def read_data(path: Path) -> (bool, list):
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            data = f.readlines()
+        infos = [x.split() for x in data]
+
+        return STATE_OK, infos
+    except Exception as e:
+        logger.error(e)
+        return STATE_ERROR, []
 
 # 配置地址--------------------------------------------------------------------------------
 
@@ -35,20 +73,52 @@ global_config = nonebot.get_driver().config
 pvz_config = Config.parse_obj(global_config.dict())
 pvz_basic_path = pvz_config.pvz_basic_path
 
-if pvz_basic_path != Path() and not os.path.exists(os.path.join(pvz_basic_path, 'font', 'msyh.ttf')):
-    shutil.copytree(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'font'),
-                    os.path.join(pvz_basic_path, 'font'), dirs_exist_ok=True)
-    shutil.copytree(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'images'),
-                    os.path.join(pvz_basic_path, 'images'), dirs_exist_ok=True)
-    shutil.copytree(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'user_data'),
-                    os.path.join(pvz_basic_path, 'user_data'), dirs_exist_ok=True)
+if pvz_basic_path != Path() and not os.path.exists(
+        os.path.join(pvz_basic_path, 'font', 'msyh.ttf')):
+    shutil.copytree(
+        os.path.join(
+            os.path.dirname(
+                os.path.abspath(__file__)),
+            'font'),
+        os.path.join(
+            pvz_basic_path,
+            'font'),
+        dirs_exist_ok=True)
+    shutil.copytree(
+        os.path.join(
+            os.path.dirname(
+                os.path.abspath(__file__)),
+            'images'),
+        os.path.join(
+            pvz_basic_path,
+            'images'),
+        dirs_exist_ok=True)
+    shutil.copytree(
+        os.path.join(
+            os.path.dirname(
+                os.path.abspath(__file__)),
+            'user_data'),
+        os.path.join(
+            pvz_basic_path,
+            'user_data'),
+        dirs_exist_ok=True)
 
 if pvz_basic_path == Path():
-    pvz_basic_path = pvz_basic_path / os.path.dirname(os.path.abspath(__file__))
+    pvz_basic_path = pvz_basic_path / \
+        os.path.dirname(os.path.abspath(__file__))
 
 
 bag_path = pvz_basic_path / "user_data" / "bag.txt"
 lawn_path = pvz_basic_path / "user_data" / "lawn.txt"
+
+if os.path.exists(lawn_path):
+    flag, users = read_data(lawn_path)
+    if len(users[0]) == 2:
+        logger.warning("检测到lawn.txt未配适1.2.6及以上版本插件，即将自动更新")
+        for i in range(len(users)):
+            users[i].append("未定级")
+        _ = write_data(lawn_path, users)
+        logger.warning("自动更新lawn.txt文件完成，可以正常使用")
 
 FONT_PATH = pvz_basic_path / "font" / "msyh.ttf"
 
@@ -718,7 +788,8 @@ def draw_test(text: str, color: Tuple, save_path: Path, fontpath: Path):
 # 入侵流程-----------------------------------------------------------------
 
 
-def one_by_one(team: List[str], plants: List[str]) -> (List, int):
+def one_by_one(team: List[str], plants: List[str]
+               ) -> (List[MessageSegment], int):
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
     # 或去当前全部植物的对象
@@ -731,16 +802,8 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
     # 僵尸序号
     zcnt = 0
     # 入侵日志
-    log = [
-        {
-            "type": "node",
-            "data": {
-                "name": "疯狂戴夫",
-                "uin": "1298919732",
-                "content": "入！侵！开始！"
-            }
-        }
-    ]
+    log = []
+    log.append(MessageSegment.text("入！侵！开始！"))
     for zombie in team:
         # 全局时间
         time = 0
@@ -765,28 +828,8 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
         lawn_pic([all_plants[x] for x in plants if x != "0"], cnt)
         zombie_pic(all_zombie[zombie], dist, cnt)
         log.append(
-            {
-                "type": "node",
-                "data": {
-                    "name": "疯狂戴夫",
-                    "uin": "1298919732",
-                    "content": [
-                        {
-                            "type": "text",
-                            "data": {
-                                "text": "当前双方阵容"
-                            }
-                        },
-                        {
-                            "type": "image",
-                            "data": {
-                                "file": f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"
-                            }
-                        }
-                    ]
-                }
-            }
-        )
+            MessageSegment.text("当前双方阵容") +
+            MessageSegment.image(f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"))
         # 图片计数序号递增
         cnt += 1
         # 当前僵尸循环，当僵尸死亡后退出，每次循环经过0.5秒
@@ -824,23 +867,8 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                     # 生成图片，打印日志
                     lawn_pic([all_plants[x] for x in plants if x != "0"], cnt)
                     zombie_pic(all_zombie[zombie], dist, cnt)
-                    log.append(
-                        {
-                            "type": "node",
-                            "data": {
-                                "name": "疯狂戴夫",
-                                "uin": "1298919732",
-                                "content": [
-                                    {
-                                        "type": "image",
-                                        "data": {
-                                            "file": f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    )
+                    log.append(MessageSegment.image(
+                        f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"))
                     cnt += 1
                 else:
                     fight_time += 0.5
@@ -848,101 +876,37 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                 if zb.jump:
                     if lawn_plants[tar].unjumpable == 1:
                         zb.jump = 0
-                        zb.v = zb.v/2
-                        log.append({
-                            "type": "node",
-                            "data": {
-                                "name": "疯狂戴夫",
-                                "uin": "1298919732",
-                                "content": [
-                                    {
-                                        "type": "text",
-                                        "data": {
-                                            "text": f"时间{time},{zombie}被高坚果阻挡后无法起跳，撑杆掉落，速度减半"
-                                        }
-                                    },
-                                ]
-                            }
-                        })
+                        zb.v = zb.v / 2
+                        log.append(
+                            MessageSegment.text(f"时间{time},{zombie}被高坚果阻挡后无法起跳，撑杆掉落，速度减半"))
                     else:
                         # 距离递减
                         dist -= 1
                         # 生成图片
-                        lawn_pic([all_plants[x] for x in plants if x != "0"], cnt)
+                        lawn_pic([all_plants[x]
+                                 for x in plants if x != "0"], cnt)
                         zombie_pic(all_zombie[zombie], dist, cnt)
                         # 如果是跳跳僵尸则不会失去下一次跳跃的功能
                         if zb.v == 0.4:
                             zb.jump = 0
                             zb.v = 0.2
-                            log.append({
-                                "type": "node",
-                                "data": {
-                                    "name": "疯狂戴夫",
-                                    "uin": "1298919732",
-                                    "content": [
-                                        {
-                                            "type": "text",
-                                            "data": {
-                                                "text": f"时间{time},{zombie}被植物阻挡后起跳，撑杆掉落，速度减半"
-                                            }
-                                        },
-                                        {
-                                            "type": "image",
-                                            "data": {
-                                                "file": f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
-                            )
+                            log.append(
+                                MessageSegment.text(f"时间{time},{zombie}被植物阻挡后起跳，撑杆掉落，速度减半") +
+                                MessageSegment.image(f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"))
                         else:
                             # 如果是跳跳僵尸，则可以继续跳过，同时失去攻击机会
-                            log.append({
-                                "type": "node",
-                                "data": {
-                                    "name": "疯狂戴夫",
-                                    "uin": "1298919732",
-                                    "content": [
-                                        {
-                                            "type": "text",
-                                            "data": {
-                                                "text": f"时间{time},{zombie}被植物阻挡后起跳,同时企图继续跳过其他植物"
-                                            }
-                                        },
-                                        {
-                                            "type": "image",
-                                            "data": {
-                                                "file": f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
-                            )
+                            log.append(
+                                MessageSegment.text(f"时间{time},{zombie}被植物阻挡后起跳,同时企图继续跳过其他植物") +
+                                MessageSegment.image(f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"))
                         cnt += 1
                     # 判断当前目标
                     if tar > 0:
                         lawn_plants[tar - 1].hp -= zb.damage
-                        log.append({
-                            "type": "node",
-                            "data": {
-                                "name": "疯狂戴夫",
-                                "uin": "1298919732",
-                                "content": f"时间{time},{zombie}对{plants[tar]}造成{zb.damage}点伤害"
-                            }
-                        }
-                        )
+                        log.append(
+                            MessageSegment.text(f"时间{time},{zombie}对{plants[tar]}造成{zb.damage}点伤害"))
                         if lawn_plants[tar - 1].hp < 0:
-                            log.append({
-                                "type": "node",
-                                "data": {
-                                    "name": "疯狂戴夫",
-                                    "uin": "1298919732",
-                                    "content": f"时间{time},{plants[tar - 1]}被击败移出"
-                                }
-                            }
-                            )
+                            log.append(
+                                MessageSegment.text(f"时间{time},{plants[tar - 1]}被击败移出"))
                             lawn_plants.pop(tar - 1)
                             plant_pos.pop(tar - 1)
                             plants.pop(tar - 1)
@@ -962,26 +926,12 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
                     if lawn_plants[tar].only_hurt_by_boss == 0 or (
                             lawn_plants[tar].only_hurt_by_boss == 1 and zb.is_gargantuar == 1):
                         lawn_plants[tar].hp -= zb.damage
-                        log.append({
-                            "type": "node",
-                            "data": {
-                                "name": "疯狂戴夫",
-                                "uin": "1298919732",
-                                "content": f"时间{time},{zombie}对{plants[tar]}造成{zb.damage if zb.jump == 0 else 0}点伤害。两次攻击间植物合计对{zombie}造成{all_damage}点伤害,{zombie}剩余血量为{zb.hp - all_damage}"
-                            }
-                        }
-                        )
+                        log.append(MessageSegment.text(
+                            f"时间{time},{zombie}对{plants[tar]}造成{zb.damage if zb.jump == 0 else 0}点伤害。两次攻击间植物合计对{zombie}造成{all_damage}点伤害,{zombie}剩余血量为{zb.hp - all_damage}"))
                         # 如果当前目标植物的耐久度小于0，则移除该植物
                         if lawn_plants[tar].hp < 0:
-                            log.append({
-                                "type": "node",
-                                "data": {
-                                    "name": "疯狂戴夫",
-                                    "uin": "1298919732",
-                                    "content": f"时间{time},{plants[tar]}被击败移出"
-                                }
-                            }
-                            )
+                            log.append(
+                                MessageSegment.text(f"时间{time},{plants[tar]}被击败移出"))
                             # 移除植物
                             lawn_plants.pop(tar)
                             plant_pos.pop(tar)
@@ -997,33 +947,13 @@ def one_by_one(team: List[str], plants: List[str]) -> (List, int):
         if iswin != 1 and zcnt == len(team):
             iswin = 2
         if iswin == 1:
-            log.append({"type": "node",
-                        "data": {"name": "疯狂戴夫",
-                                 "uin": "1298919732",
-                                 "content": [{"type": "text",
-                                              "data": {"text": f"入侵成功！成功吃掉对方脑子！"}},
-                                             {"type": "image",
-                                              "data": {"file": f"file:///{PVZ_ORI_PATH}/end.jpg"}}]}})
+            log.append(MessageSegment.text(f"入侵成功！成功吃掉对方脑子！") +
+                       MessageSegment.image(f"file:///{PVZ_ORI_PATH}/end.jpg"))
             break
         elif iswin == 2:
-            log.append({
-                "type": "node",
-                "data": {
-                    "name": "疯狂戴夫",
-                    "uin": "1298919732",
-                    "content": f"僵尸{zombie}被击败，所有僵尸均死去,入侵结束"
-                }
-            })
+            log.append(MessageSegment.text(f"僵尸{zombie}被击败，所有僵尸均死去,入侵结束"))
         elif iswin == 0:
-            log.append({
-                "type": "node",
-                "data": {
-                    "name": "疯狂戴夫",
-                    "uin": "1298919732",
-                    "content": f"{zombie}终于不堪重负被击败，但入侵仍在继续"
-                }
-            }
-            )
+            log.append(MessageSegment.text(f"{zombie}终于不堪重负被击败，但入侵仍在继续"))
 
     return log, iswin
 
@@ -1126,6 +1056,8 @@ upload_data = on_command(
         "pvz数据载入",
         "pvz数据上传"})
 
+lawn_evaluation = on_command("阵容评估",aliases={"植物阵容评估", "战力评估", "阵容评级", "阵容定级", "战力定级"}, priority=5, block=True)
+
 # pvz签到-----------------------------------------------------------------------------
 
 
@@ -1136,11 +1068,11 @@ async def _(event: MessageEvent):
     user_id = str(event.user_id)
     if user_id in users_id:
         if users[users_id.index(user_id)][4] == "0":
-            users[users_id.index(user_id)][3] = str(
-                int(users[users_id.index(user_id)][3]) + 100)
+            users[users_id.index(user_id)][3] = str(int(
+                users[users_id.index(user_id)][3]) + 100 * (1 + 0.5 * random.randrange(-1, 1)))
             users[users_id.index(user_id)][4] = "1"
-            flag = write_data(Path(bag_path), users)
-            msg = "今天获得了50阳光，已经放入您的背包"
+            _ = write_data(Path(bag_path), users)
+            msg = "今天获得了100阳光，已经放入您的背包"
         else:
             msg = "贪心的人是不会有好运的哦...您今天已经签到过啦！"
     else:
@@ -1211,7 +1143,7 @@ async def _(event: MessageEvent):
     if at_qid:
         user_id = str(at_qid[0])
         if user_id in users_id:
-            _, lawn_plants = users[users_id.index(user_id)]
+            _, lawn_plants, level = users[users_id.index(user_id)]
             lawn_plants = lawn_plants.split(",")
             res = "当前他的草坪布置:\n"
             for i in range(len(lawn_plants)):
@@ -1219,7 +1151,11 @@ async def _(event: MessageEvent):
                     res += f"位置{i + 1}:空\n"
                 else:
                     res += f"位置{i + 1}:{lawn_plants[i]}\n"
-            res += "**********\n实际的布置位置的序号从左到右为1,2,3,4,5,6,即僵尸会有限攻击6号位植物"
+            res += "**********\n实际的布置位置的序号从左到右为1,2,3,4,5,6,即僵尸会有限攻击6号位植物\n"
+            if level == "未定级":
+                res += "当前草坪未定级，可以使用命令'阵容评估'给草坪定级，并且查看当前用户中的排名"
+            else:
+                res += f"当前草坪被定为{level}级"
             # 生成草坪图片
             lawn_pic([all_plants[x] for x in lawn_plants if x != "0"])
             img = MessageSegment.image(
@@ -1233,7 +1169,7 @@ async def _(event: MessageEvent):
     else:
         user_id = str(event.user_id)
         if user_id in users_id:
-            _, lawn_plants = users[users_id.index(user_id)]
+            _, lawn_plants, level = users[users_id.index(user_id)]
             lawn_plants = lawn_plants.split(",")
             res = "当前您的草坪布置:\n"
             for i in range(len(lawn_plants)):
@@ -1241,7 +1177,11 @@ async def _(event: MessageEvent):
                     res += f"位置{i + 1}:空\n"
                 else:
                     res += f"位置{i + 1}:{lawn_plants[i]}\n"
-            res += "**********\n实际的布置位置的序号从左到右为1,2,3,4,5,6,即僵尸会有限攻击6号位植物"
+            res += "**********\n实际的布置位置的序号从左到右为1,2,3,4,5,6,即僵尸会优先攻击6号位植物\n"
+            if level == "未定级":
+                res += "您当前草坪未定级，可以使用命令'阵容评估'给草坪顶级，并且查看当前用户中的排名"
+            else:
+                res += f"当前草坪被定为{level}级"
             # 生成草坪图片
             lawn_pic([all_plants[x] for x in lawn_plants if x != "0"])
             img = MessageSegment.image(
@@ -1250,7 +1190,7 @@ async def _(event: MessageEvent):
             await asyncio.sleep(1)
             await look_lawn.finish(res, at_sender=True)
         else:
-            users.append([user_id, "0,0,0,0,0,0"])
+            users.append([user_id, "0,0,0,0,0,0", "未定级"])
             flag = write_data(Path(lawn_path), users)
             if flag:
                 await asyncio.sleep(1)
@@ -1452,7 +1392,7 @@ async def _(event: MessageEvent, state: T_State, args: Message = CommandArg()):
     users_id = [x[0] for x in users]
     user_id = str(event.user_id)
     if user_id in users_id:
-        _, state["lawn_puts"] = users[users_id.index(user_id)]
+        _, state["lawn_puts"], level = users[users_id.index(user_id)]
         state["users"] = users
         state["index"] = users_id.index(user_id)
         # 读取背包数据，用于后续判断
@@ -1482,7 +1422,7 @@ async def _(state: T_State, cate: str = ArgStr("cate")):
         plant, pos = cate.split(" ")
         pos = int(pos)
         if plant in list(all_plants.keys()):
-            now_pos = state["lawn_puts"].split(',')
+            now_pos: List = state["lawn_puts"].split(',')
             my_plants: List = (state["plants"]).split(",")
             if plant in my_plants:
                 for p in now_pos:
@@ -1499,6 +1439,7 @@ async def _(state: T_State, cate: str = ArgStr("cate")):
                         lawn_pic([all_plants[x] for x in now_pos if x != "0"])
                         img = MessageSegment.image(
                             "file:///" / PVZ_OUTPUT_PATH / "output0.png")
+                        now_pos = [x if x!='0' else '空' for x in now_pos]
                         res = MessageSegment.text(
                             f"放置成功，您的草坪现在为：\n{','.join(now_pos)}") + img
                         await put_on_lawn.finish(res, at_sender=True)
@@ -1541,7 +1482,7 @@ async def _(event: GroupMessageEvent, state: T_State):
             else:
                 state["lawn"] = lawn
                 flag, users_2 = read_data(Path(bag_path))
-                if users_id in [x[0] for x in users_2]:
+                if user_id in [x[0] for x in users_2]:
                     state["bag_zombie"] = users_2[users_id.index(
                         str(event.user_id))][2].split(",")
                 else:
@@ -1591,14 +1532,14 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State, team: str = ArgS
             # 一个一个入侵
             log, iswin = one_by_one(zombie_team, plants)
             # 发送数据
-            await bot.send_group_forward_msg(group_id=event.group_id, messages=log)
+            await send_forward_msg(bot, event, name="疯狂戴夫", uin=str(event.user_id), msgs=log)
 
 
 # 植物人机训练--------------------------------------------------------------------------
 
 
 @play_with_computer_zombie.handle()
-async def _(event: GroupMessageEvent, state: T_State, args: Message = CommandArg()):
+async def _(event: MessageEvent, state: T_State, args: Message = CommandArg()):
     flag, users = read_data(Path(lawn_path))
     users_id = [x[0] for x in users]
     user_id = str(event.user_id)
@@ -1616,7 +1557,7 @@ async def _(event: GroupMessageEvent, state: T_State, args: Message = CommandArg
 
 
 @play_with_computer_zombie.got("mode", prompt="请选择难度模式，可选择易，中，难，地狱四种不同级别的难度")
-async def _(bot: Bot, event: GroupMessageEvent, state: T_State, mode: str = ArgStr("mode")):
+async def _(bot: Bot, event: MessageEvent, state: T_State, mode: str = ArgStr("mode")):
     if mode in ["取消", "算了"]:
         await asyncio.sleep(1)
         await play_with_computer_zombie.finish("已取消操作...")
@@ -1631,7 +1572,7 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State, mode: str = ArgS
             zombie_team = ["伽刚特尔", "橄榄球僵尸", "铁栅门僵尸", "小鬼僵尸"]
         lawn_plants = state["lawn"]
         log, iswin = one_by_one(zombie_team, lawn_plants)
-        await bot.send_group_forward_msg(group_id=event.group_id, messages=log)
+        await send_forward_msg(bot, event, name="疯狂戴夫", uin=str(event.user_id), msgs=log)
         await asyncio.sleep(0.5)
         if iswin == 1:
             await play_with_computer_zombie.finish(f"很遗憾您没能通过难度为{mode}的植物人机训练，此次出场的僵尸阵容为{','.join(zombie_team)}",
@@ -1648,7 +1589,7 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State, mode: str = ArgS
 
 
 @play_with_computer_plant.handle()
-async def _(event: GroupMessageEvent, state: T_State, args: Message = CommandArg()):
+async def _(event: MessageEvent, state: T_State, args: Message = CommandArg()):
     flag, users = read_data(Path(bag_path))
     users_id = [x[0] for x in users]
     user_id = str(event.user_id)
@@ -1691,7 +1632,7 @@ async def _(state: T_State, mode: str = ArgStr("mode")):
 
 @play_with_computer_plant.got("team",
                               prompt="请选择您的僵尸入侵小队，僵尸之间用空格分割，最多选择三个僵尸，例如'普通僵尸 普通僵尸 普通僵尸'")
-async def _(bot: Bot, event: GroupMessageEvent, state: T_State, team: str = ArgStr("team")):
+async def _(bot: Bot, event: MessageEvent, state: T_State, team: str = ArgStr("team")):
     mode = state["mode"]
     if team in ["取消", "算了"]:
         await asyncio.sleep(1)
@@ -1722,7 +1663,7 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State, team: str = ArgS
         # 一个一个入侵
         log, iswin = one_by_one(zombie_team, plants)
         # 发送数据
-        await bot.send_group_forward_msg(group_id=event.group_id, messages=log)
+        await send_forward_msg(bot, event, name="疯狂戴夫", uin=str(event.user_id), msgs=log)
         await asyncio.sleep(0.5)
         if iswin == 1:
             await play_with_computer_plant.finish(f"恭喜您成功通过难度为{mode}的僵尸人机训练",
@@ -1732,6 +1673,53 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State, team: str = ArgS
                                                   at_sender=True)
 
 
+# 阵容评估------------------------------------------------------------------------------------
+
+@lawn_evaluation.handle()
+async def _(event: MessageEvent):
+    flag, users = read_data(Path(lawn_path))
+    users_id = [x[0] for x in users]
+    user_id = str(event.user_id)
+    if user_id in users_id:
+        lawn_plants = (users[users_id.index(user_id)][1]).split(",")
+        zombie_team = [["跳跳僵尸"], ["铁桶僵尸"], ["橄榄球僵尸"], ["伽刚特尔"]]
+        flag = 0
+        cnt = 0
+        for i in range(len(zombie_team)):
+            _, iswin = one_by_one(zombie_team[i], lawn_plants)
+            if iswin == 1:
+                flag = 1
+                cnt = i
+                break
+        if flag == 0:
+            level = "S"
+        else:
+            if cnt == 0:
+                level = "D"
+            elif cnt == 1:
+                level = "C"
+            elif cnt == 2:
+                level = "B"
+            else:
+                level = "A"
+        users[users_id.index(user_id)][2] = level
+        flag = write_data(Path(lawn_path), users)
+        level_all = [x[2] if x != '未定级' else 'D' for x in users]
+        level_count = dict(Counter(level_all))
+        level_order = ["S", "A", "B", "C", "D"]
+        summary_m = 0
+        summary_z = 0
+        for i in range(len(level_order)):
+            if i >= level_order.index(level):
+                summary_z += level_count[level_order[i]]
+            summary_m += level_count[level_order[i]]
+        exceed = round(summary_z/summary_m,4)*100
+        await asyncio.sleep(1)
+        await lawn_evaluation.finish(f"您当前的阵容定级为{level},超越了{exceed}%的当前用户", at_sender=True)
+    else:
+        await asyncio.sleep(1)
+        await play_with_computer_zombie.finish("您暂未开启草坪,请通过'查看草坪'来开启", at_sender=True)
+
 # 帮助---------------------------------------------------------------------------------
 
 
@@ -1739,7 +1727,7 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State, team: str = ArgS
 async def _():
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
-    res = "欢迎了解植物大战僵尸v1.2.3\n\n" \
+    res = "欢迎了解植物大战僵尸v1.2.5\n\n" \
           "**************************************************\n\n" \
           "您可以通过使用关键字'查看背包'来查看您的背包\n\n" \
           "**************************************************\n" \
@@ -1826,42 +1814,37 @@ async def run_every_day_to_reset_signin_data():
         users[i][4] = "0"
     flag = write_data(Path(bag_path), users)
     if flag:
-        print("********植物大战僵尸签到数据已重置*********")
+        logger.warning("********植物大战僵尸签到数据已重置*********")
     else:
-        print("********植物大战僵尸签到数据重置失败*********")
+        logger.warning("********植物大战僵尸签到数据重置失败*********")
 
 
-# 文档操作----------------------------------------------------------------------------
 
 
-def write_data(path: Path, data: list) -> bool:
-    try:
-        if data:
-            flag = 0
-            for info in data:
-                if flag == 0:
-                    with open(path, 'w', encoding='utf-8') as f:
-                        f.write(' '.join(info))
-                    flag = 1
-                elif flag == 1:
-                    with open(path, 'a', encoding='utf-8') as f:
-                        f.write('\n' + (' '.join(info)))
-        else:
-            with open(path, 'w') as f:
-                f.write('')
-        return STATE_OK
-    except BaseException as e:
-        print(e)
-        return STATE_ERROR
+# 合并转发---------------------------------------------------------------------------------------
 
 
-def read_data(path: Path) -> (bool, list):
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            data = f.readlines()
-        infos = [x.split() for x in data]
+async def send_forward_msg(
+    bot: Bot,
+    event: MessageEvent,
+    name: str,
+    uin: str,
+    msgs: List[Union[MessageSegment, Message]],
+) -> dict:
+    def to_json(msg: Union[MessageSegment, Message]):
+        return {
+            "type": "node",
+            "data": {
+                "name": name,
+                "uin": uin,
+                "content": msg}}
 
-        return STATE_OK, infos
-    except BaseException as e:
-        print(e)
-        return STATE_ERROR, []
+    messages = [to_json(msg) for msg in msgs]
+    if isinstance(event, GroupMessageEvent):
+        return await bot.call_api(
+            "send_group_forward_msg", group_id=event.group_id, messages=messages
+        )
+    else:
+        return await bot.call_api(
+            "send_private_forward_msg", user_id=event.user_id, messages=messages
+        )
