@@ -165,7 +165,9 @@ pip install nonebot_plugin_pvz-1.2.6-py3-none-any.whl
 ## 自定义配置
 
 ```buildoutcfg
-对Python编程比较熟悉的使用者可以在 .env 文件中设置PVZ_BASIC_PATH来选择图片输出路径，缓存数据将在第一次搭建运行时复制到指定目录下
+对Python编程比较熟悉的使用者可以在 .env 文件中设置PVZ_BASIC_PATH来选择图片输出路径，
+
+缓存数据将在第一次搭建运行时复制到指定目录下(配置完此项后可以不适用命令来上传和下载数据)
 
 默认位置为''，即库的安装位置处，可以在环境中的site-packages中找到。
 
