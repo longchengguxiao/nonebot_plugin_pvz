@@ -7,7 +7,7 @@
 
 from nonebot_plugin_apscheduler import scheduler
 from PIL import Image, ImageDraw, ImageFont
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Any
 import numpy as np
 from nonebot.typing import T_State
 from nonebot.adapters.onebot.v11 import Bot, MessageSegment, MessageEvent, GroupMessageEvent, Message
@@ -118,18 +118,38 @@ lawn_path = pvz_basic_path / "user_data" / "lawn.txt"
 if os.path.exists(lawn_path):
     flag, users = read_data(lawn_path)
     if len(users[0]) == 2:
-        logger.warning("检测到lawn.txt未配适1.2.6及以上版本插件，即将自动更新")
+        logger.warning("检测到lawn.txt未配适1.3.2及以上版本插件，即将自动更新")
         for i in range(len(users)):
+            users[i].append("0,0,0,0,0,0")
+            users[i].append("0,0,0,0,0,0")
             users[i].append("未定级")
+            users[i].append("阴")
         _ = write_data(lawn_path, users)
-        logger.warning("自动更新lawn.txt文件完成，可以正常使用")
+        flag, users2 = read_data(bag_path)
+        for i in range(len(users2)):
+            users2[i][3] = str(int(users2[i][3]) + 200)
+        _ = write_data(bag_path, users2)
+        logger.warning("自动更新lawn.txt文件完成，可以正常使用。同时由于本次更新，所有用户的阳光数加200")
+    elif len(users[0]) == 3:
+        logger.warning("检测到lawn.txt未配适1.3.2及以上版本插件，即将自动更新")
+        for i in range(len(users)):
+            l = users[i].pop(-1)
+            users[i].append("0,0,0,0,0,0")
+            users[i].append("0,0,0,0,0,0")
+            users[i].append(l)
+            users[i].append("阴")
+        _ = write_data(lawn_path, users)
+        flag, users2 = read_data(bag_path)
+        for i in range(len(users2)):
+            users2[i][3] = str(int(users2[i][3]) + 200)
+        _ = write_data(bag_path, users2)
+        logger.warning("自动更新lawn.txt文件完成，可以正常使用。同时由于本次更新，所有用户的阳光数加200")
 
 FONT_PATH = pvz_basic_path / "font" / "msyh.ttf"
 
 PVZ_IMAGE_PATH = pvz_basic_path / 'images' / 'pvz' / 'base'
 PVZ_OUTPUT_PATH = pvz_basic_path / 'images' / 'pvz' / 'output'
 PVZ_ORI_PATH = pvz_basic_path / 'images' / 'pvz' / 'ori'
-
 
 
 # 信息操作----------------------------------------------------------
@@ -643,7 +663,7 @@ class Zombie():
         铁栅门僵尸
         :return:
         """
-        self.hp = 270 + 1100
+        self.hp = 270 + 1100 * 1.2
         self.v = 0.2
         self.damage = 100
         self.price = 100
@@ -658,7 +678,7 @@ class Zombie():
         橄榄球僵尸
         :return:
         """
-        self.hp = 270 + 1100
+        self.hp = 270 + 1100 * 1.2
         self.v = 0.4
         self.damage = 100
         self.price = 175
@@ -688,7 +708,7 @@ class Zombie():
         伽刚特尔
         :return:
         """
-        self.hp = 3000
+        self.hp = 3000 * 1.2
         self.v = 0.2
         self.damage = 10000
         self.price = 300
@@ -715,6 +735,8 @@ class Zombie():
 
 
 # 获取损失的hp------------------------------------------------------------------------------
+
+
 def get_hp_down(
         zombie: Zombie,
         plants: List[Plants],
@@ -733,7 +755,6 @@ def get_hp_down(
                 plant.damage_distance)[0] < dist - plant_pos[plants.index(plant)] < plant.damage_distance[1]:
             ans += plant.damage
     return ans
-
 
 # 绘制图片---------------------------------------------------------------------------
 
@@ -786,16 +807,108 @@ def draw_test(text: str, color: Tuple, save_path: Path, fontpath: Path):
     img.save(save_path)
 
 
-# 入侵流程-----------------------------------------------------------------
+# 生成草坪阵容---------------------------------------------------------------
+
+def get_lawn(lawn_plants: List[str], num: str) -> Message:
+    res = f"当前他的草坪{num}布置:\n"
+    for i in range(len(lawn_plants)):
+        if lawn_plants[i] == "0":
+            res += f"位置{i + 1}:空, "
+        else:
+            res += f"位置{i + 1}:{lawn_plants[i]}, "
+    lawn_pic([all_plants[x] if x != "0" else "0" for x in lawn_plants], int(num))
+    img = MessageSegment.image(
+        "file:///" / PVZ_OUTPUT_PATH / f"output{num}.png")
+    res = MessageSegment.text(res) + img
+    return res
+
+# 获取随机数----------------------------------------------------------------
 
 
-def one_by_one(team: List[str], plants: List[str]
-               ) -> (List[MessageSegment], int):
+def random_choice(data: List) -> (Any, int):
+    ans = random.choice(data)
+    return ans, data.index(ans)
+
+
+def cut_through() -> str:
+    return random.choice(["戴夫祈祷中....",
+                          "僵尸们正在决策最佳的进攻路径....",
+                          "僵尸们正在提前思考怎样烹饪脑子比较好吃....",
+                          "植物们正在思考对策....",
+                          "摇旗僵尸正在做战前演讲....",
+                          "僵王博士似乎为僵尸们提供了高科技手段支持....",
+                          "僵尸们正在刷牙....",
+                          "僵尸们正在修剪指甲....",
+                          "智慧树给植物们提供了有用的建议....",
+                          "向日葵给大家献歌一首'Zombies on your Lawn'...",
+                          "铁桶僵尸取下了他的铁桶，并养起了...鱼？",
+                          "咦，舞王僵尸的舞伴去哪了？哦，原来在打麻将 (舞王：为什么不带我！！！)...",
+                          "大嘴花正在反刍品尝之前的美味(未消化)..."])
+
+# 获取评级------------------------------------------------------------------
+
+
+def get_evalution(lawn_plants: List[str]) -> (str):
+    zombie_team = [["跳跳僵尸"], ["铁桶僵尸"], ["橄榄球僵尸"], ["伽刚特尔"]]
+    flag = 0
+    cnt = 0
+    for i in range(len(zombie_team)):
+        _, iswin = one_by_one(zombie_team[i], lawn_plants, "阴")
+        if iswin == 1:
+            flag = 1
+            cnt = i
+            break
+    if flag == 0:
+        level = "S"
+    else:
+        if cnt == 0:
+            level = "D"
+        elif cnt == 1:
+            level = "C"
+        elif cnt == 2:
+            level = "B"
+        else:
+            level = "A"
+    return level
+
+
+# 入侵流程------------------------------------------------------------------
+
+
+def one_by_one(team: List[str], plants: List[str],
+               weather: str) -> (List[MessageSegment], int):
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
-    # 或去当前全部植物的对象
+    # 获取当前全部植物的对象
     lawn_plants = [Plants(all_plants[plant])
                    for plant in plants if plant != "0"]
+    # 获取僵尸对象
+    zombie = [Zombie(all_zombie[zb]) for zb in team]
+
+    if not lawn_plants:
+        return [
+            MessageSegment.text("难道僵尸们又长出了新的脑子？这块草坪居然没有植物?!\n您的脑子被吃掉了, 请为您的草坪提供更多防御") +
+            MessageSegment.image(f"file:///{PVZ_ORI_PATH}/end.jpg")], 1
+
+    # 天气效果
+    if weather == "晴":
+        for i in range(len(lawn_plants)):
+            lawn_plants[i].damage *= 1.5
+    elif weather == "雨":
+        for i in range(len(zombie)):
+            zombie[i].v *= 2
+        for i in range(len(lawn_plants)):
+            lawn_plants[i].hp *= 1.5
+    elif weather == "雪":
+        for i in range(len(lawn_plants)):
+            lawn_plants[i].damage_interval *= 2
+    elif weather == "雾":
+        for i in range(len(zombie)):
+            zombie[i].v *= 0.5
+        for i in range(len(lawn_plants)):
+            if lawn_plants[i].damage_distance[1] > 4:
+                lawn_plants[i].damage_distance[1] = 4
+
     # 判断是否胜利
     iswin = 0
     # 生成图片计数
@@ -805,7 +918,7 @@ def one_by_one(team: List[str], plants: List[str]
     # 入侵日志
     log = []
     log.append(MessageSegment.text("入！侵！开始！"))
-    for zombie in team:
+    for zb in zombie:
         # 全局时间
         time = 0
         # 僵尸序号+1
@@ -817,8 +930,6 @@ def one_by_one(team: List[str], plants: List[str]
             0.5 +
             i for i in range(
                 len(lawn_plants)) if lawn_plants[i].hp > 0]
-        # 获取僵尸对象
-        zb = Zombie(all_zombie[zombie])
         # 战斗是否开始，即僵尸是否会攻击植物
         fight_cond = 0
         # 每次开始到当前的战斗时间
@@ -827,7 +938,7 @@ def one_by_one(team: List[str], plants: List[str]
         all_damage = 0
         # 生成图片，写入日志
         lawn_pic([all_plants[x] if x != "0" else "0" for x in plants], cnt)
-        zombie_pic(all_zombie[zombie], dist, cnt)
+        zombie_pic(all_zombie[team[zcnt - 1]], dist, cnt)
         log.append(
             MessageSegment.text("当前双方阵容") +
             MessageSegment.image(f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"))
@@ -866,8 +977,9 @@ def one_by_one(team: List[str], plants: List[str]
                     fight_time = 0
                     fight_cond = 1
                     # 生成图片，打印日志
-                    lawn_pic([all_plants[x] if x != "0" else "0" for x in plants], cnt)
-                    zombie_pic(all_zombie[zombie], dist, cnt)
+                    lawn_pic([all_plants[x] if x !=
+                              "0" else "0" for x in plants], cnt)
+                    zombie_pic(all_zombie[team[zcnt - 1]], dist, cnt)
                     log.append(MessageSegment.image(
                         f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"))
                     cnt += 1
@@ -879,31 +991,32 @@ def one_by_one(team: List[str], plants: List[str]
                         zb.jump = 0
                         zb.v = zb.v / 2
                         log.append(
-                            MessageSegment.text(f"时间{time},{zombie}被高坚果阻挡后无法起跳，撑杆掉落，速度减半"))
+                            MessageSegment.text(f"时间{time},{team[zcnt-1]}被高坚果阻挡后无法起跳，撑杆掉落，速度减半"))
                     else:
                         # 距离递减
                         dist -= 1
                         # 生成图片
-                        lawn_pic([all_plants[x] if x != "0" else "0" for x in plants], cnt)
-                        zombie_pic(all_zombie[zombie], dist, cnt)
+                        lawn_pic([all_plants[x] if x !=
+                                  "0" else "0" for x in plants], cnt)
+                        zombie_pic(all_zombie[team[zcnt - 1]], dist, cnt)
                         # 如果是跳跳僵尸则不会失去下一次跳跃的功能
                         if zb.v == 0.4:
                             zb.jump = 0
                             zb.v = 0.2
                             log.append(
-                                MessageSegment.text(f"时间{time},{zombie}被植物阻挡后起跳，撑杆掉落，速度减半") +
+                                MessageSegment.text(f"时间{time},{team[zcnt-1]}被植物阻挡后起跳，撑杆掉落，速度减半") +
                                 MessageSegment.image(f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"))
                         else:
                             # 如果是跳跳僵尸，则可以继续跳过，同时失去攻击机会
                             log.append(
-                                MessageSegment.text(f"时间{time},{zombie}被植物阻挡后起跳,同时企图继续跳过其他植物") +
+                                MessageSegment.text(f"时间{time},{team[zcnt-1]}被植物阻挡后起跳,同时企图继续跳过其他植物") +
                                 MessageSegment.image(f"file:///{PVZ_OUTPUT_PATH}/output_new{cnt}.png"))
                         cnt += 1
                     # 判断当前目标
                     if tar > 0:
                         lawn_plants[tar - 1].hp -= zb.damage
                         log.append(
-                            MessageSegment.text(f"时间{time},{zombie}对{plants[tar]}造成{zb.damage}点伤害"))
+                            MessageSegment.text(f"时间{time},{team[zcnt-1]}对{plants[tar]}造成{zb.damage}点伤害"))
                         if lawn_plants[tar - 1].hp < 0:
                             log.append(
                                 MessageSegment.text(f"时间{time},{plants[tar - 1]}被击败移出"))
@@ -927,7 +1040,7 @@ def one_by_one(team: List[str], plants: List[str]
                             lawn_plants[tar].only_hurt_by_boss == 1 and zb.is_gargantuar == 1):
                         lawn_plants[tar].hp -= zb.damage
                         log.append(MessageSegment.text(
-                            f"时间{time},{zombie}对{plants[tar]}造成{zb.damage if zb.jump == 0 else 0}点伤害。两次攻击间植物合计对{zombie}造成{all_damage}点伤害,{zombie}剩余血量为{zb.hp - all_damage}"))
+                            f"时间{time},{team[zcnt-1]}对{plants[tar]}造成{zb.damage if zb.jump == 0 else 0}点伤害。两次攻击间植物合计对{team[zcnt-1]}造成{all_damage}点伤害,{team[zcnt-1]}剩余血量为{zb.hp - all_damage}"))
                         # 如果当前目标植物的耐久度小于0，则移除该植物
                         if lawn_plants[tar].hp < 0:
                             log.append(
@@ -951,15 +1064,14 @@ def one_by_one(team: List[str], plants: List[str]
                        MessageSegment.image(f"file:///{PVZ_ORI_PATH}/end.jpg"))
             break
         elif iswin == 2:
-            log.append(MessageSegment.text(f"僵尸{zombie}被击败，所有僵尸均死去,入侵结束"))
+            log.append(MessageSegment.text(f"{team[zcnt-1]}被击败，所有僵尸均死去,入侵结束"))
         elif iswin == 0:
-            log.append(MessageSegment.text(f"{zombie}终于不堪重负被击败，但入侵仍在继续"))
+            log.append(MessageSegment.text(f"{team[zcnt-1]}终于不堪重负被击败，但入侵仍在继续"))
 
     return log, iswin
 
 
 # 初始化全局变量-------------------------------------------------------------------------
-
 
 now_env = "白天"
 
@@ -1015,6 +1127,22 @@ all_zombie = {
 }
 zombie_price = [50, 75, 75, 125, 100, 175, 150, 300, 50]
 
+weather_effect = {
+    "阴": "植物僵尸均正常",
+    "晴": "由于光合作用, 植物攻击伤害增大为原来的1.5倍",
+    "雨": "由于路面打滑, 僵尸移动速度为原来的两倍，但植物的生命值提升为原来的1.5倍",
+    "雪": "由于天气变冷, 植物的攻击速度降低为原来的两倍",
+    "雾": "由于可见度降低, 僵尸的移动速度降低，植物的攻击距离减小"
+}
+
+level_comment = {
+    "S": "您的阵容已经十分强大，足以抵御伽刚特尔的入侵，脑子暂时安全了",
+    "A": "您对于阵容的理解已经十分成熟了，但是伤害还是不够，可以考虑选择地刺这种黏黏的东西，或许给豌豆施加一点火焰魔法，这应该会有用",
+    "B": "您对于阵容的理解已渐入佳境，但防御有所欠缺，我的建议是购买一些坚果或者冷动植物，这样僵尸不至于活蹦乱跳的跑得太快",
+    "C": "您对于阵容的理解已初窥门径，但伤害还有所欠缺，或许购买伤害更高的植物如机枪豌豆会更有效",
+    "D": "您的阵容伤害匮乏，或许优先布置高坚果是个很不错的选择"
+}
+
 # 初始化命令----------------------------------------------------------------------------
 
 pvz_signin = on_command("pvz签到", block=True, priority=5, aliases={"植物大战僵尸签到"})
@@ -1024,7 +1152,7 @@ look_shop = on_command("查看商店", block=True, priority=5)
 look_pvz = on_command("查看图鉴", aliases={"查询图鉴", "图鉴查询"}, block=True, priority=5)
 buy = on_command("购买", priority=5, block=True)
 put_on_lawn = on_command("放置", block=True, priority=5)
-play_with_computer_zombie = on_command("植物人机训练", block=True, priority=5)
+# play_with_computer_zombie = on_command("植物人机训练", block=True, priority=5)
 play_with_computer_plant = on_command(
     "僵尸人机训练", block=True, priority=5, aliases={"我是僵尸"})
 _help = on_command(
@@ -1056,7 +1184,16 @@ upload_data = on_command(
         "pvz数据载入",
         "pvz数据上传"})
 
-lawn_evaluation = on_command("阵容评估",aliases={"植物阵容评估", "战力评估", "阵容评级", "阵容定级", "战力定级"}, priority=5, block=True)
+lawn_evaluation = on_command(
+    "阵容评估",
+    aliases={
+        "植物阵容评估",
+        "战力评估",
+        "阵容评级",
+        "阵容定级",
+        "战力定级"},
+    priority=5,
+    block=True)
 
 # pvz签到-----------------------------------------------------------------------------
 
@@ -1068,11 +1205,12 @@ async def _(event: MessageEvent):
     user_id = str(event.user_id)
     if user_id in users_id:
         if users[users_id.index(user_id)][4] == "0":
+            sunshine_gain = 100 * (1 + 0.5 * random.randrange(-1, 1))
             users[users_id.index(user_id)][3] = str(int(
-                users[users_id.index(user_id)][3]) + 100 * (1 + 0.5 * random.randrange(-1, 1)))
+                users[users_id.index(user_id)][3]) + sunshine_gain)
             users[users_id.index(user_id)][4] = "1"
             _ = write_data(Path(bag_path), users)
-            msg = "今天获得了100阳光，已经放入您的背包"
+            msg = f"今天获得了{sunshine_gain}阳光，已经放入您的背包"
         else:
             msg = "贪心的人是不会有好运的哦...您今天已经签到过啦！"
     else:
@@ -1119,7 +1257,7 @@ async def _(event: MessageEvent):
         await look_bag.finish(res, at_sender=True)
     else:
         # 储存格式为 user_id 拥有植物 拥有僵尸 拥有阳光 是否签到
-        users.append([user_id, "豌豆射手", "普通僵尸", "100", "1"])
+        users.append([user_id, "豌豆射手", "普通僵尸", "200", "1"])
         flag = write_data(Path(bag_path), users)
         await asyncio.sleep(1)
         if flag:
@@ -1143,24 +1281,23 @@ async def _(event: MessageEvent):
     if at_qid:
         user_id = str(at_qid[0])
         if user_id in users_id:
-            _, lawn_plants, level = users[users_id.index(user_id)]
-            lawn_plants = lawn_plants.split(",")
-            res = "当前他的草坪布置:\n"
-            for i in range(len(lawn_plants)):
-                if lawn_plants[i] == "0":
-                    res += f"位置{i + 1}:空\n"
-                else:
-                    res += f"位置{i + 1}:{lawn_plants[i]}\n"
-            res += "**********\n实际的布置位置的序号从左到右为1,2,3,4,5,6,即僵尸会有限攻击6号位植物\n"
+            _, lawn_plants1, lawn_plants2, lawn_plants3, level, weather = users[users_id.index(
+                user_id)]
+            lawn_plants1 = lawn_plants1.split(",")
+            lawn_plants2 = lawn_plants2.split(",")
+            lawn_plants3 = lawn_plants3.split(",")
+            res1 = get_lawn(lawn_plants1, "1")
+            res2 = get_lawn(lawn_plants2, "2")
+            res3 = get_lawn(lawn_plants3, "3")
+            res = res1 + res2 + res3 + \
+                MessageSegment.text("**********\n实际的布置位置的序号从左到右为1,2,3,4,5,6,即僵尸会有限攻击6号位植物\n**********\n")
             if level == "未定级":
-                res += "当前草坪未定级，可以使用命令'阵容评估'给草坪定级，并且查看当前用户中的排名"
+                res += MessageSegment.text(
+                    "当前草坪未定级，可以使用命令'阵容评估'给草坪定级，并且查看当前用户中的排名\n**********\n")
             else:
-                res += f"当前草坪被定为{level}级"
+                res += MessageSegment.text(f"当前草坪被定为{level}级\n**********\n")
+            res += f"当前草坪天气为{weather}, 在当前天气下{weather_effect[weather]}"
             # 生成草坪图片
-            lawn_pic([all_plants[x] if x != "0" else "0" for x in lawn_plants])
-            img = MessageSegment.image(
-                "file:///" / PVZ_OUTPUT_PATH / "output0.png")
-            res = MessageSegment.text(res) + img
             await asyncio.sleep(1)
             await look_lawn.finish(res, at_sender=True)
         else:
@@ -1169,32 +1306,32 @@ async def _(event: MessageEvent):
     else:
         user_id = str(event.user_id)
         if user_id in users_id:
-            _, lawn_plants, level = users[users_id.index(user_id)]
-            lawn_plants = lawn_plants.split(",")
-            res = "当前您的草坪布置:\n"
-            for i in range(len(lawn_plants)):
-                if lawn_plants[i] == "0":
-                    res += f"位置{i + 1}:空\n"
-                else:
-                    res += f"位置{i + 1}:{lawn_plants[i]}\n"
-            res += "**********\n实际的布置位置的序号从左到右为1,2,3,4,5,6,即僵尸会优先攻击6号位植物\n"
+            _, lawn_plants1, lawn_plants2, lawn_plants3, level, weather = users[users_id.index(
+                user_id)]
+            lawn_plants1 = lawn_plants1.split(",")
+            lawn_plants2 = lawn_plants2.split(",")
+            lawn_plants3 = lawn_plants3.split(",")
+            res1 = get_lawn(lawn_plants1, "1")
+            res2 = get_lawn(lawn_plants2, "2")
+            res3 = get_lawn(lawn_plants3, "3")
+            res = res1 + res2 + res3 + \
+                MessageSegment.text("**********\n实际的布置位置的序号从左到右为1,2,3,4,5,6,即僵尸会优先攻击6号位植物\n**********\n")
             if level == "未定级":
-                res += "您当前草坪未定级，可以使用命令'阵容评估'给草坪顶级，并且查看当前用户中的排名"
+                res += MessageSegment.text(
+                    "当前草坪未定级，可以使用命令'阵容评估'给草坪顶级，并且查看当前用户中的排名\n**********\n")
             else:
-                res += f"当前草坪被定为{level}级"
-            # 生成草坪图片
-            lawn_pic([all_plants[x] if x != "0" else "0" for x in lawn_plants])
-            img = MessageSegment.image(
-                "file:///" / PVZ_OUTPUT_PATH / "output0.png")
-            res = MessageSegment.text(res) + img
+                res += MessageSegment.text(
+                    f"当前草坪被定为{level}级\n提升建议:{level_comment[level]}\n**********\n")
+            res += f"当前草坪天气为{weather}, 在当前天气下{weather_effect[weather]}"
             await asyncio.sleep(1)
             await look_lawn.finish(res, at_sender=True)
         else:
-            users.append([user_id, "0,0,0,0,0,0", "未定级"])
+            users.append([user_id, "0,0,0,0,0,0", "0,0,0,0,0,0",
+                         "0,0,0,0,0,0", "未定级", "阴"])
             flag = write_data(Path(lawn_path), users)
             if flag:
                 await asyncio.sleep(1)
-                await look_lawn.finish("恭喜您第一次开启草坪，目前您的草坪是空的。您可以通过放置来将背包中的植物放在草坪上", at_sender=True)
+                await look_lawn.finish("恭喜您第一次开启草坪，目前您的3个草坪都是空的。您可以通过放置来将背包中的植物放在草坪上", at_sender=True)
             else:
                 await asyncio.sleep(1)
                 await look_lawn.finish("写入文件出错，请联系管理员")
@@ -1392,7 +1529,8 @@ async def _(event: MessageEvent, state: T_State, args: Message = CommandArg()):
     users_id = [x[0] for x in users]
     user_id = str(event.user_id)
     if user_id in users_id:
-        _, state["lawn_puts"], level = users[users_id.index(user_id)]
+        _, state["lawn_puts1"], state["lawn_puts2"], state["lawn_puts3"], level, weather = users[users_id.index(
+            user_id)]
         state["users"] = users
         state["index"] = users_id.index(user_id)
         # 读取背包数据，用于后续判断
@@ -1403,14 +1541,15 @@ async def _(event: MessageEvent, state: T_State, args: Message = CommandArg()):
                 (msg.split(" ")[0] in list(
                     all_plants.keys())) or (
                         msg.split(" ")[0] in list(
-                            all_zombie.keys()))):
+                            all_zombie.keys()))) or (msg.split(" ")[0] == "空"):
             state["cate"] = msg
     else:
         await asyncio.sleep(1)
         await buy.finish("您暂未开启草坪，请通过'查看草坪'开启", at_sender=True)
 
 
-@put_on_lawn.got("cate", prompt="您想要放置哪种植物?放在几号位置(1-6)?中间用空格分割")
+@put_on_lawn.got("cate",
+                 prompt="您想要放置哪种植物?放在几号草坪的几号位置(1-6)?中间用空格分割, 例如'豌豆射手 1 2'\n可以输入'空'+位置来移除植物")
 async def _(state: T_State, cate: str = ArgStr("cate")):
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
@@ -1418,30 +1557,37 @@ async def _(state: T_State, cate: str = ArgStr("cate")):
         await asyncio.sleep(1)
         await put_on_lawn.finish("已取消操作...")
     temp = cate.split(" ")
-    if len(temp) == 2 and temp[1] in ["1", "2", "3", "4", "5", "6"]:
-        plant, pos = cate.split(" ")
+    if len(temp) >= 3 and temp[1] in [
+            "1", "2", "3"] and temp[2] in [
+            "1", "2", "3", "4", "5", "6"]:
+        plant = cate.split(" ")[0]
+        lawn_num = cate.split(" ")[1]
+        pos = cate.split(" ")[2]
         pos = int(pos)
         if plant in list(all_plants.keys()):
-            now_pos: List = state["lawn_puts"].split(',')
+            now_pos: List = state[f"lawn_puts{lawn_num}"].split(',')
             my_plants: List = (state["plants"]).split(",")
+            all_plant: List = state["lawn_puts1"].split(
+                ",") + state["lawn_puts2"].split(",") + state["lawn_puts3"].split(",")
             if plant in my_plants:
-                for p in now_pos:
+                for p in all_plant:
                     if p != "0":
                         my_plants.pop(my_plants.index(p))
                 if plant in my_plants:
                     users = state["users"]
                     now_pos[pos - 1] = plant
-                    users[state["index"]][1] = ",".join(now_pos)
+                    users[state["index"]][int(lawn_num)] = ",".join(now_pos)
                     flag = write_data(Path(lawn_path), users)
                     if flag:
                         await asyncio.sleep(1)
                         # 获取图片
-                        lawn_pic([all_plants[x] if x != "0" else "0" for x in now_pos])
+                        lawn_pic([all_plants[x] if x !=
+                                  "0" else "0" for x in now_pos])
                         img = MessageSegment.image(
                             "file:///" / PVZ_OUTPUT_PATH / "output0.png")
-                        now_pos = [x if x!='0' else '空' for x in now_pos]
+                        now_pos = [x if x != '0' else '空' for x in now_pos]
                         res = MessageSegment.text(
-                            f"放置成功，您的草坪现在为：\n{','.join(now_pos)}") + img + MessageSegment.text("可以重新进行阵容评估来获取最新排名哦~")
+                            f"放置成功，您的草坪{lawn_num}现在为：\n{','.join(now_pos)}") + img + MessageSegment.text("可以重新进行阵容评估来获取最新排名哦~")
                         await put_on_lawn.finish(res, at_sender=True)
                     else:
                         await asyncio.sleep(1)
@@ -1452,15 +1598,26 @@ async def _(state: T_State, cate: str = ArgStr("cate")):
             else:
                 await asyncio.sleep(1)
                 await put_on_lawn.finish(f"您的背包中没有{plant}哦，请先购买啦", at_sender=True)
-        elif cate in list(all_zombie.keys()):
+        elif plant in list(all_zombie.keys()):
             await asyncio.sleep(1)
             await put_on_lawn.finish("你想脑子被吃掉吗，哼！", at_sender=True)
+        elif plant == "空":
+            now_pos: List = state[f"lawn_puts{lawn_num}"].split(',')
+            users = state["users"]
+            now_pos[pos - 1] = "0"
+            users[state["index"]][int(lawn_num)] = ",".join(now_pos)
+            _ = write_data(Path(lawn_path), users)
+            lawn_pic([all_plants[x] if x != "0" else "0" for x in now_pos])
+            img = MessageSegment.image(
+                "file:///" / PVZ_OUTPUT_PATH / "output0.png")
+            await asyncio.sleep(1)
+            await put_on_lawn.finish(MessageSegment.text(f"成功移除草坪{lawn_num}的{pos}号位植物, 当前草坪状态:") + img)
         else:
             await asyncio.sleep(1)
             await buy.finish("您输入的名称有误，购买失败", at_sender=True)
     else:
         await asyncio.sleep(1)
-        await put_on_lawn.finish("输入格式有误，输入样例:'豌豆射手 1'", at_sender=True)
+        await put_on_lawn.finish("输入格式有误，输入样例:'豌豆射手 1 2'", at_sender=True)
 
 
 # 入侵--------------------------------------------------------------------------------
@@ -1475,16 +1632,24 @@ async def _(event: GroupMessageEvent, state: T_State):
     if at_qid:
         user_id = str(at_qid[0])
         if user_id in users_id:
-            lawn = users[users_id.index(user_id)][1].split(",")
-            if len(set(lawn)) == 1 and set(lawn).pop() == "0":
+            lawn1 = users[users_id.index(user_id)][1].split(",")
+            lawn2 = users[users_id.index(user_id)][2].split(",")
+            lawn3 = users[users_id.index(user_id)][3].split(",")
+            weather = users[users_id.index(user_id)][4]
+            if len(
+                    set(lawn1)) == 1 and set(lawn1).pop() == "0" and len(
+                    set(lawn2)) == 1 and set(lawn2).pop() == "0" and len(
+                    set(lawn3)) == 1 and set(lawn3).pop() == "0":
                 await asyncio.sleep(1)
-                await fight.finish("您所要入侵的草坪并没有放置植物，请照顾一下这个可怜的家伙换一个草坪入侵吧", at_sender=True)
+                await fight.finish("您所要入侵的草坪并没有放置任何植物，请照顾一下这个可怜的家伙换一个草坪入侵吧", at_sender=True)
             else:
-                state["lawn"] = lawn
+                state["lawn"], state["lawn_num"] = random_choice(
+                    [lawn1, lawn2, lawn3])
                 flag, users_2 = read_data(Path(bag_path))
                 if user_id in [x[0] for x in users_2]:
                     state["bag_zombie"] = users_2[users_id.index(
                         str(event.user_id))][2].split(",")
+                    state["weather"] = weather
                 else:
                     await fight.finish("您暂未开启背包，请先开启背包", at_sender=True)
         else:
@@ -1529,8 +1694,12 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State, team: str = ArgS
         if flag == 1:
             # 获取当前全部植物的名称
             plants = state["lawn"]
+            await fight.send(cut_through())
             # 一个一个入侵
-            log, iswin = one_by_one(zombie_team, plants)
+            log, iswin = one_by_one(zombie_team, plants, state["weather"])
+            await asyncio.sleep(1)
+            await fight.send(f"当前僵尸选择从草坪{state['lawn_num']+1}来组织进攻")
+            await asyncio.sleep(1)
             # 发送数据
             await send_forward_msg(bot, event, name="疯狂戴夫", uin=str(event.user_id), msgs=log)
 
@@ -1538,51 +1707,52 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State, team: str = ArgS
 # 植物人机训练--------------------------------------------------------------------------
 
 
-@play_with_computer_zombie.handle()
-async def _(event: MessageEvent, state: T_State, args: Message = CommandArg()):
-    flag, users = read_data(Path(lawn_path))
-    users_id = [x[0] for x in users]
-    user_id = str(event.user_id)
-    if user_id in users_id:
-        msg = args.extract_plain_text().strip()
-        if msg and msg in ["易", "中", "难", "地狱"]:
-            state["mode"] = msg
-        state["lawn"] = (users[users_id.index(user_id)][1]).split(",")
-        if len(set(state["lawn"])) == 1 and set(state["lawn"]).pop() == "0":
-            await asyncio.sleep(1)
-            await play_with_computer_zombie.finish("草坪没有植物，是想要脑子被吃掉嘛喂！可以通过'放置'来向草坪上置放植物哦~")
-    else:
-        await asyncio.sleep(1)
-        await play_with_computer_zombie.finish("您暂未开启草坪,请通过'查看草坪'来开启", at_sender=True)
-
-
-@play_with_computer_zombie.got("mode", prompt="请选择难度模式，可选择易，中，难，地狱四种不同级别的难度")
-async def _(bot: Bot, event: MessageEvent, state: T_State, mode: str = ArgStr("mode")):
-    if mode in ["取消", "算了"]:
-        await asyncio.sleep(1)
-        await play_with_computer_zombie.finish("已取消操作...")
-    if mode in ["易", "中", "难", "地狱"]:
-        if mode == "易":
-            zombie_team = ["路障僵尸", "普通僵尸", "小鬼僵尸"]
-        elif mode == "中":
-            zombie_team = ["橄榄球僵尸", "铁栅门僵尸", "路障僵尸"]
-        elif mode == "难":
-            zombie_team = ["橄榄球僵尸", "铁栅门僵尸", "铁桶僵尸", "跳跳僵尸"]
-        else:
-            zombie_team = ["伽刚特尔", "橄榄球僵尸", "铁栅门僵尸", "小鬼僵尸"]
-        lawn_plants = state["lawn"]
-        log, iswin = one_by_one(zombie_team, lawn_plants)
-        await send_forward_msg(bot, event, name="疯狂戴夫", uin=str(event.user_id), msgs=log)
-        await asyncio.sleep(0.5)
-        if iswin == 1:
-            await play_with_computer_zombie.finish(f"很遗憾您没能通过难度为{mode}的植物人机训练，此次出场的僵尸阵容为{','.join(zombie_team)}",
-                                                   at_sender=True)
-        else:
-            await play_with_computer_zombie.finish(f"恭喜您成功通过难度为{mode}的植物人机训练，此次出场的僵尸阵容为{','.join(zombie_team)}",
-                                                   at_sender=True)
-    else:
-        await asyncio.sleep(1)
-        await play_with_computer_zombie.finish("您选择的难度有误，小小垚看不懂，请重新选择", at_sender=True)
+# @play_with_computer_zombie.handle()
+# async def _(event: MessageEvent, state: T_State, args: Message = CommandArg()):
+#     flag, users = read_data(Path(lawn_path))
+#     users_id = [x[0] for x in users]
+#     user_id = str(event.user_id)
+#     if user_id in users_id:
+#         msg = args.extract_plain_text().strip()
+#         if msg and msg in ["易", "中", "难", "地狱"]:
+#             state["mode"] = msg
+#         state["lawn"] = (users[users_id.index(user_id)][1]).split(",")
+#         if len(set(state["lawn"])) == 1 and set(state["lawn"]).pop() == "0":
+#             await asyncio.sleep(1)
+#             await play_with_computer_zombie.finish("草坪没有植物，是想要脑子被吃掉嘛喂！可以通过'放置'来向草坪上置放植物哦~")
+#     else:
+#         await asyncio.sleep(1)
+#         await play_with_computer_zombie.finish("您暂未开启草坪,请通过'查看草坪'来开启", at_sender=True)
+#
+#
+# @play_with_computer_zombie.got("mode", prompt="请选择难度模式，可选择易，中，难，地狱四种不同级别的难度")
+# async def _(bot: Bot, event: MessageEvent, state: T_State, mode: str = ArgStr("mode")):
+#     if mode in ["取消", "算了"]:
+#         await asyncio.sleep(1)
+#         await play_with_computer_zombie.finish("已取消操作...")
+#     if mode in ["易", "中", "难", "地狱"]:
+#         if mode == "易":
+#             zombie_team = ["路障僵尸", "普通僵尸", "小鬼僵尸"]
+#         elif mode == "中":
+#             zombie_team = ["橄榄球僵尸", "铁栅门僵尸", "路障僵尸"]
+#         elif mode == "难":
+#             zombie_team = ["橄榄球僵尸", "铁栅门僵尸", "铁桶僵尸", "跳跳僵尸"]
+#         else:
+#             zombie_team = ["伽刚特尔", "橄榄球僵尸", "铁栅门僵尸", "小鬼僵尸"]
+#         lawn_plants = state["lawn"]
+#         log, iswin = one_by_one(zombie_team, lawn_plants)
+#         await send_forward_msg(bot, event, name="疯狂戴夫", uin=str(event.user_id), msgs=log)
+#         await asyncio.sleep(0.5)
+#         if iswin == 1:
+#             await play_with_computer_zombie.finish(f"很遗憾您没能通过难度为{mode}的植物人机训练，此次出场的僵尸阵容为{','.join(zombie_team)}",
+#                                                    at_sender=True)
+#         else:
+#             await play_with_computer_zombie.finish(f"恭喜您成功通过难度为{mode}的植物人机训练，此次出场的僵尸阵容为{','.join(zombie_team)}",
+#                                                    at_sender=True)
+#     else:
+#         await asyncio.sleep(1)
+# await play_with_computer_zombie.finish("您选择的难度有误，小小垚看不懂，请重新选择",
+# at_sender=True)
 
 
 # 僵尸人机训练----------------------------------------------------------------------------------------
@@ -1660,8 +1830,10 @@ async def _(bot: Bot, event: MessageEvent, state: T_State, team: str = ArgStr("t
     if flag == 1:
         # 获取当前全部植物的名称
         plants = state["plants"]
+        await play_with_computer_plant.send(cut_through())
+        await asyncio.sleep(0.5)
         # 一个一个入侵
-        log, iswin = one_by_one(zombie_team, plants)
+        log, iswin = one_by_one(zombie_team, plants, "阴")
         # 发送数据
         await send_forward_msg(bot, event, name="疯狂戴夫", uin=str(event.user_id), msgs=log)
         await asyncio.sleep(0.5)
@@ -1681,52 +1853,42 @@ async def _(event: MessageEvent):
     users_id = [x[0] for x in users]
     user_id = str(event.user_id)
     if user_id in users_id:
-        lawn_plants = (users[users_id.index(user_id)][1]).split(",")
-        if len(set(lawn_plants)) == 1 and set(lawn_plants).pop() == "0":
+        lawn_plants1 = (users[users_id.index(user_id)][1]).split(",")
+        lawn_plants2 = (users[users_id.index(user_id)][2]).split(",")
+        lawn_plants3 = (users[users_id.index(user_id)][3]).split(",")
+        if len(
+            set(lawn_plants1)) == 1 and set(lawn_plants1).pop() == "0" and len(
+            set(lawn_plants2)) == 1 and set(lawn_plants2).pop() == "0" and len(
+                set(lawn_plants3)) == 1 and set(lawn_plants3).pop() == "0":
             await asyncio.sleep(1)
             await lawn_evaluation.finish("您的草坪上没有植物啊，请放置好植物后再来进行评估吧")
-        zombie_team = [["跳跳僵尸"], ["铁桶僵尸"], ["橄榄球僵尸"], ["伽刚特尔"]]
-        flag = 0
-        cnt = 0
-        for i in range(len(zombie_team)):
-            _, iswin = one_by_one(zombie_team[i], lawn_plants)
-            if iswin == 1:
-                flag = 1
-                cnt = i
-                break
-        if flag == 0:
-            level = "S"
-            comment = "您的阵容已经十分强大，足以抵御伽刚特尔的入侵，脑子暂时安全了"
-        else:
-            if cnt == 0:
-                level = "D"
-                comment = "您的阵容伤害匮乏，或许优先布置高坚果是个很不错的选择"
-            elif cnt == 1:
-                level = "C"
-                comment = "您对于阵容的理解已初窥门径，但伤害还有所欠缺，或许购买伤害更高的植物如机枪豌豆会更有效"
-            elif cnt == 2:
-                level = "B"
-                comment = "您对于阵容的理解已渐入佳境，但防御有所欠缺，我的建议是购买一些坚果或者冷动植物，这样僵尸不至于活蹦乱跳的跑得太快"
-            else:
-                level = "A"
-                comment = "您对于阵容的理解已经十分成熟了，但是伤害还是不够，可以考虑选择地刺这种黏黏的东西，或许给豌豆施加一点火焰魔法，这应该会有用"
-        users[users_id.index(user_id)][2] = level
-        _ = write_data(Path(lawn_path), users)
-        level_all = [x[2] if x[2] != '未定级' else 'D' for x in users]
-        level_count = dict(Counter(level_all))
+        await lawn_evaluation.send(cut_through())
+        level = "D"
         level_order = ["S", "A", "B", "C", "D"]
+        for lawn_plants in [lawn_plants1, lawn_plants2, lawn_plants3]:
+            level1 = get_evalution(lawn_plants=lawn_plants)
+            if level1 == "S":
+                level = level1
+                break
+            if level_order.index(level1) < level_order.index(level):
+                level = level1
+        users[users_id.index(user_id)][4] = level
+        _ = write_data(Path(lawn_path), users)
+        level_all = [x[4] if x[4] != '未定级' else 'D' for x in users]
+        level_count = dict(Counter(level_all))
+
         summary_m = 0
         summary_z = 0
         for i in range(len(level_order)):
             if i >= level_order.index(level):
-                summary_z += level_count.get(level_order[i],0)
-            summary_m += level_count.get(level_order[i],0)
-        exceed = round(summary_z/summary_m,4)*100
+                summary_z += level_count.get(level_order[i], 0)
+            summary_m += level_count.get(level_order[i], 0)
+        exceed = round(summary_z / summary_m, 4) * 100
         await asyncio.sleep(1)
-        await lawn_evaluation.finish(f"您当前的阵容定级为{level}, 超越了{exceed}%的当前用户, 排名为{(summary_m-summary_z) if summary_m!=summary_z else 1}/{summary_m}\n提升建议:{comment}", at_sender=True)
+        await lawn_evaluation.finish(f"您当前的阵容定级为{level}, 超越了{exceed}%的当前用户, 排名为{(summary_m-summary_z) if summary_m!=summary_z else 1}/{summary_m}\n提升建议:{level_comment[level]}", at_sender=True)
     else:
         await asyncio.sleep(1)
-        await play_with_computer_zombie.finish("您暂未开启草坪,请通过'查看草坪'来开启", at_sender=True)
+        await lawn_evaluation.finish("您暂未开启草坪,请通过'查看草坪'来开启", at_sender=True)
 
 # 帮助---------------------------------------------------------------------------------
 
@@ -1735,7 +1897,8 @@ async def _(event: MessageEvent):
 async def _():
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
-    res = "欢迎了解植物大战僵尸v1.3.1\n\n" \
+    res = "欢迎使用植物大战僵尸v1.3.2\n\n" \
+          "您可以通过使用关键字'pvz签到'来获取每天的签到阳光奖励，在50-150之间随机，祝您好运\n\n" \
           "**************************************************\n\n" \
           "您可以通过使用关键字'查看背包'来查看您的背包\n\n" \
           "**************************************************\n" \
@@ -1747,7 +1910,7 @@ async def _():
           "**************************************************\n\n" \
           "通过关键字'放置'来将背包内的植物放在草坪上以抵御僵尸的攻势\n\n" \
           "**************************************************\n\n" \
-          "通过关键字'植物人机训练'来进行模拟入侵\n\n" \
+          "通过关键字'植物人机训练'来进行模拟入侵(暂时移除)\n\n" \
           "**************************************************\n\n" \
           "通过关键字'僵尸人机训练'来进行模拟防御\n\n" \
           "**************************************************\n" \
@@ -1814,12 +1977,12 @@ async def _(for_sure: str = ArgStr("for_sure")):
     shutil.copyfile(os.path.join(src_path, 'lawn.txt'), Path(lawn_path))
     await download_data.finish("pvz用户数据已经成功保存")
 
-# 定时操作，更改签到数据----------------------------------------------------------------
+# 定时操作，更改签到和天气数据----------------------------------------------------------------
 
 
 @scheduler.scheduled_job("cron", day="*")
 async def run_every_day_to_reset_signin_data():
-    flag, users = read_data(Path(bag_path))
+    _, users = read_data(Path(bag_path))
     for i in range(len(users)):
         users[i][4] = "0"
     flag = write_data(Path(bag_path), users)
@@ -1827,8 +1990,14 @@ async def run_every_day_to_reset_signin_data():
         logger.warning("********植物大战僵尸签到数据已重置*********")
     else:
         logger.warning("********植物大战僵尸签到数据重置失败*********")
-
-
+    _, users = read_data(Path(lawn_path))
+    for i in range(len(users)):
+        users[i][5] = random_choice(list(weather_effect.keys()))[0]
+    flag = write_data(Path(bag_path), users)
+    if flag:
+        logger.warning("********植物大战僵尸天气数据已更新*********")
+    else:
+        logger.warning("********植物大战僵尸天气数据更新失败*********")
 
 
 # 合并转发---------------------------------------------------------------------------------------
