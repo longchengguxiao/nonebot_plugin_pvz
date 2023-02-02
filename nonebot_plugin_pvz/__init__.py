@@ -117,33 +117,34 @@ lawn_path = pvz_basic_path / "user_data" / "lawn.txt"
 
 if os.path.exists(lawn_path):
     flag, users = read_data(lawn_path)
-    if len(users[0]) == 2:
-        logger.warning("检测到lawn.txt未配适1.3.2及以上版本插件，即将自动更新")
-        for i in range(len(users)):
-            users[i].append("0,0,0,0,0,0")
-            users[i].append("0,0,0,0,0,0")
-            users[i].append("未定级")
-            users[i].append("阴")
-        _ = write_data(lawn_path, users)
-        flag, users2 = read_data(bag_path)
-        for i in range(len(users2)):
-            users2[i][3] = str(int(users2[i][3]) + 200)
-        _ = write_data(bag_path, users2)
-        logger.warning("自动更新lawn.txt文件完成，可以正常使用。同时由于本次更新，所有用户的阳光数加200")
-    elif len(users[0]) == 3:
-        logger.warning("检测到lawn.txt未配适1.3.2及以上版本插件，即将自动更新")
-        for i in range(len(users)):
-            l = users[i].pop(-1)
-            users[i].append("0,0,0,0,0,0")
-            users[i].append("0,0,0,0,0,0")
-            users[i].append(l)
-            users[i].append("阴")
-        _ = write_data(lawn_path, users)
-        flag, users2 = read_data(bag_path)
-        for i in range(len(users2)):
-            users2[i][3] = str(int(users2[i][3]) + 200)
-        _ = write_data(bag_path, users2)
-        logger.warning("自动更新lawn.txt文件完成，可以正常使用。同时由于本次更新，所有用户的阳光数加200")
+    if users:
+        if len(users[0]) == 2:
+            logger.warning("检测到lawn.txt未配适1.3.2及以上版本插件，即将自动更新")
+            for i in range(len(users)):
+                users[i].append("0,0,0,0,0,0")
+                users[i].append("0,0,0,0,0,0")
+                users[i].append("未定级")
+                users[i].append("阴")
+            _ = write_data(lawn_path, users)
+            flag, users2 = read_data(bag_path)
+            for i in range(len(users2)):
+                users2[i][3] = str(int(users2[i][3]) + 200)
+            _ = write_data(bag_path, users2)
+            logger.warning("自动更新lawn.txt文件完成，可以正常使用。同时由于本次更新，所有用户的阳光数加200")
+        elif len(users[0]) == 3:
+            logger.warning("检测到lawn.txt未配适1.3.2及以上版本插件，即将自动更新")
+            for i in range(len(users)):
+                l = users[i].pop(-1)
+                users[i].append("0,0,0,0,0,0")
+                users[i].append("0,0,0,0,0,0")
+                users[i].append(l)
+                users[i].append("阴")
+            _ = write_data(lawn_path, users)
+            flag, users2 = read_data(bag_path)
+            for i in range(len(users2)):
+                users2[i][3] = str(int(users2[i][3]) + 200)
+            _ = write_data(bag_path, users2)
+            logger.warning("自动更新lawn.txt文件完成，可以正常使用。同时由于本次更新，所有用户的阳光数加200")
 
 FONT_PATH = pvz_basic_path / "font" / "msyh.ttf"
 
@@ -1210,7 +1211,11 @@ async def _(event: MessageEvent):
                 users[users_id.index(user_id)][3]) + sunshine_gain)
             users[users_id.index(user_id)][4] = "1"
             _ = write_data(Path(bag_path), users)
-            msg = f"今天获得了{sunshine_gain}阳光，已经放入您的背包"
+            msg = f"今天获得了{sunshine_gain}阳光，已经放入您的背包\n"
+            if sunshine_gain > 100:
+                msg += "今天的运气不错呀，或许会有意外的惊喜哦~"
+            else:
+                msg += "没事没事，知足常乐啦，阳光也是不少的，还是...有的吧"
         else:
             msg = "贪心的人是不会有好运的哦...您今天已经签到过啦！"
     else:
@@ -1614,7 +1619,7 @@ async def _(state: T_State, cate: str = ArgStr("cate")):
             await put_on_lawn.finish(MessageSegment.text(f"成功移除草坪{lawn_num}的{pos}号位植物, 当前草坪状态:") + img)
         else:
             await asyncio.sleep(1)
-            await buy.finish("您输入的名称有误，购买失败", at_sender=True)
+            await buy.finish("您输入的植物名称有误，请重新输入", at_sender=True)
     else:
         await asyncio.sleep(1)
         await put_on_lawn.finish("输入格式有误，输入样例:'豌豆射手 1 2'", at_sender=True)
@@ -1650,6 +1655,8 @@ async def _(event: GroupMessageEvent, state: T_State):
                     state["bag_zombie"] = users_2[users_id.index(
                         str(event.user_id))][2].split(",")
                     state["weather"] = weather
+                    await fight.send(f"当前您要入侵的草坪处于{weather}天，处于当前天气下，{weather_effect[weather]}")
+                    await asyncio.sleep(0.5)
                 else:
                     await fight.finish("您暂未开启背包，请先开启背包", at_sender=True)
         else:
@@ -1657,7 +1664,7 @@ async def _(event: GroupMessageEvent, state: T_State):
             await fight.finish("您要入侵的人并没有开启草坪，快去邀请他吧~", at_sender=True)
     else:
         await asyncio.sleep(1)
-        await fight.finish("请至少@一个开启草坪的人来进行入侵", at_sender=True)
+        await fight.finish("请至少@一个开启草坪的人来进行入侵，重新进行操作吧~", at_sender=True)
 
 
 @fight.got("team", prompt="请尽快选择您要入侵的阵容，多个僵尸中间用空格分割(最多不超过三个)，默认方式为一个一个出场。\n例如'普通僵尸 普通僵尸 撑杆僵尸'")
@@ -1679,7 +1686,7 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State, team: str = ArgS
         if len(result2.items()) > 3:
             # 是否小于三个
             flag = 0
-            await fight.finish("僵尸数量太多啦, 请可怜可怜打工的僵尸吧", at_sender=True)
+            await fight.reject_arg("team", prompt="僵尸数量太多啦, 请可怜可怜打工的僵尸吧，输入僵尸数量小于3哦, 尝试重新输入吧", at_sender=True)
         # 判断背包中僵尸数量是否大于小队中
         for k, v in result2.items():
             if k in list(all_zombie.keys()):
@@ -1688,9 +1695,10 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State, team: str = ArgS
                     await fight.finish(f"您的背包中没有足够的{k}，请先去商店购买", at_sender=True)
                     break
             else:
-                await fight.finish(f"您输入的僵尸名称'{k}'有误，请重新输入", at_sender=True)
                 flag = 0
+                await fight.reject_arg("team", prompt=f"您输入的僵尸名称'{k}'有误，请重新输入", at_sender=True)
                 break
+
         if flag == 1:
             # 获取当前全部植物的名称
             plants = state["lawn"]
@@ -1897,7 +1905,7 @@ async def _(event: MessageEvent):
 async def _():
     if not os.path.exists(PVZ_OUTPUT_PATH):
         os.makedirs(PVZ_OUTPUT_PATH)
-    res = "欢迎使用植物大战僵尸v1.3.2\n\n" \
+    res = "欢迎使用植物大战僵尸v1.3.3\n\n" \
           "您可以通过使用关键字'pvz签到'来获取每天的签到阳光奖励，在50-150之间随机，祝您好运\n\n" \
           "**************************************************\n\n" \
           "您可以通过使用关键字'查看背包'来查看您的背包\n\n" \

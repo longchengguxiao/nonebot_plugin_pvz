@@ -83,6 +83,10 @@ pip install nonebot_plugin_pvz-1.2.6-py3-none-any.whl
 <details>
 <summary>展开/收起</summary>
 
+### v1.3.3
+
++ 2023/02/02 修复对于新用户（即不存在本地数据）无法正常启动初始化的问题
+
 ### v1.3.2
 
 + 2023/02/01 新增两路草坪，在入侵时随机选择一路，增加可玩性和趣味性
