@@ -2002,7 +2002,7 @@ async def run_every_day_to_reset_signin_data():
     _, users = read_data(Path(lawn_path))
     for i in range(len(users)):
         users[i][5] = random_choice(list(weather_effect.keys()))[0]
-    flag = write_data(Path(bag_path), users)
+    flag = write_data(Path(lawn_path), users)
     if flag:
         logger.warning("********植物大战僵尸天气数据已更新*********")
     else:
