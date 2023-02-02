@@ -1640,7 +1640,8 @@ async def _(event: GroupMessageEvent, state: T_State):
             lawn1 = users[users_id.index(user_id)][1].split(",")
             lawn2 = users[users_id.index(user_id)][2].split(",")
             lawn3 = users[users_id.index(user_id)][3].split(",")
-            weather = users[users_id.index(user_id)][4]
+            level = users[users_id.index(user_id)][4]
+            weather = users[users_id.index(user_id)][5]
             if len(
                     set(lawn1)) == 1 and set(lawn1).pop() == "0" and len(
                     set(lawn2)) == 1 and set(lawn2).pop() == "0" and len(
@@ -1655,7 +1656,7 @@ async def _(event: GroupMessageEvent, state: T_State):
                     state["bag_zombie"] = users_2[users_id.index(
                         str(event.user_id))][2].split(",")
                     state["weather"] = weather
-                    await fight.send(f"当前您要入侵的草坪处于{weather}天，处于当前天气下，{weather_effect[weather]}")
+                    await fight.send(f"当前您要入侵的草坪定级为{level},并且处于{weather}天，处于当前天气下，{weather_effect[weather]}")
                     await asyncio.sleep(0.5)
                 else:
                     await fight.finish("您暂未开启背包，请先开启背包", at_sender=True)
