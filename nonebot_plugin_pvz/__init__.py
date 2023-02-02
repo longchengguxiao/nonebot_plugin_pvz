@@ -811,7 +811,7 @@ def draw_test(text: str, color: Tuple, save_path: Path, fontpath: Path):
 # 生成草坪阵容---------------------------------------------------------------
 
 def get_lawn(lawn_plants: List[str], num: str) -> Message:
-    res = f"当前他的草坪{num}布置:\n"
+    res = f"当前草坪{num}布置:\n"
     for i in range(len(lawn_plants)):
         if lawn_plants[i] == "0":
             res += f"位置{i + 1}:空, "
