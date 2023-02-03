@@ -1652,7 +1652,7 @@ async def _(event: GroupMessageEvent, state: T_State):
                 state["lawn"], state["lawn_num"] = random_choice(
                     [lawn1, lawn2, lawn3])
                 flag, users_2 = read_data(Path(bag_path))
-                if user_id in [x[0] for x in users_2]:
+                if str(event.user_id) in [x[0] for x in users_2]:
                     state["bag_zombie"] = users_2[users_id.index(
                         str(event.user_id))][2].split(",")
                     state["weather"] = weather
@@ -1684,14 +1684,14 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State, team: str = ArgS
         result1 = dict(Counter(bag_zombie))
         result2 = dict(Counter(zombie_team))
         flag = 1
-        if len(result2.items()) > 3:
+        if len(zombie_team) > 3:
             # 是否小于三个
             flag = 0
             await fight.reject_arg("team", prompt="僵尸数量太多啦, 请可怜可怜打工的僵尸吧，输入僵尸数量小于3哦, 尝试重新输入吧", at_sender=True)
         # 判断背包中僵尸数量是否大于小队中
         for k, v in result2.items():
             if k in list(all_zombie.keys()):
-                if (not result1.get(k,None)) or (result1.get(k, None) and result1.get(k) < v):
+                if result1.get(k, None) and result1.get(k) < v:
                     flag = 0
                     await fight.finish(f"您的背包中没有足够的{k}，请先去商店购买", at_sender=True)
                     break
@@ -1821,19 +1821,19 @@ async def _(bot: Bot, event: MessageEvent, state: T_State, team: str = ArgStr("t
     result1 = dict(Counter(bag_zombie))
     result2 = dict(Counter(zombie_team))
     flag = 1
-    if len(result2.items()) > 3:
+    if len(zombie_team) > 3:
         # 是否小于三个
         flag = 0
-        await play_with_computer_plant.finish("僵尸数量太多啦, 请可怜可怜打工的僵尸吧", at_sender=True)
+        await play_with_computer_plant.reject_arg("team", "僵尸数量太多啦, 请可怜可怜打工的僵尸吧", at_sender=True)
     # 判断背包中僵尸数量是否大于小队中
     for k, v in result2.items():
         if k in list(all_zombie.keys()):
-            if result1.get(k, None) and result1.get(k) < v:
+            if (not result1.get(k, None)) or (result1.get(k, None) and result1.get(k) < v):
                 flag = 0
                 await play_with_computer_plant.finish(f"您的背包中没有足够的{k}，请先去商店购买", at_sender=True)
                 break
         else:
-            await play_with_computer_plant.finish(f"您输入的僵尸名称'{k}'有误，请重新输入", at_sender=True)
+            await play_with_computer_plant.reject_arg(f"您输入的僵尸名称'{k}'有误，请重新输入", at_sender=True)
             flag = 0
             break
     if flag == 1:
