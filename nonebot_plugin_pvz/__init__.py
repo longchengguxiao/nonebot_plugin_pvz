@@ -1691,7 +1691,7 @@ async def _(bot: Bot, event: GroupMessageEvent, state: T_State, team: str = ArgS
         # 判断背包中僵尸数量是否大于小队中
         for k, v in result2.items():
             if k in list(all_zombie.keys()):
-                if result1.get(k, None) and result1.get(k) < v:
+                if (not result1.get(k, None)) or result1.get(k, None) and result1.get(k) < v:
                     flag = 0
                     await fight.finish(f"您的背包中没有足够的{k}，请先去商店购买", at_sender=True)
                     break
