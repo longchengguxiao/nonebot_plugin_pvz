@@ -1485,11 +1485,11 @@ async def _(state: T_State, cate: str = ArgStr("cate")):
         if cate in plants_in_bag and plants_in_bag.count(cate) >= 6:
             await buy.finish(f"您背包中的{cate}个数大于等于6，请不要在购买啦！")
         price = plants_price[list(all_plants.keys()).index(cate)]
-        if price > int(state["sunshine"]):
+        if price > int(float(state["sunshine"])):
             await asyncio.sleep(1)
             await buy.finish("购买失败，阳光不够")
         else:
-            rest_of_sunshine = int(state["sunshine"]) - price
+            rest_of_sunshine = int(float(state["sunshine"])) - price
             users = state["users"]
             # 修改数据
             users[state["index"]][1] = state["plants"] + f",{cate}"
@@ -1507,11 +1507,11 @@ async def _(state: T_State, cate: str = ArgStr("cate")):
         if cate in zombies_in_bag and zombies_in_bag.count(cate) >= 3:
             await buy.finish(f"您背包中的{cate}个数大于等于3，请不要在购买啦！")
         price = zombie_price[list(all_zombie.keys()).index(cate)]
-        if price > int(state["sunshine"]):
+        if price > int(float(state["sunshine"])):
             await asyncio.sleep(1)
             await buy.finish("购买失败，阳光不够")
         else:
-            rest_of_sunshine = int(state["sunshine"]) - price
+            rest_of_sunshine = int(float(state["sunshine"])) - price
             users = state["users"]
             users[state["index"]][2] = state["zombies"] + f",{cate}"
             users[state["index"]][3] = str(rest_of_sunshine)
@@ -1540,6 +1540,7 @@ async def _(event: MessageEvent, state: T_State, args: Message = CommandArg()):
         state["index"] = users_id.index(user_id)
         # 读取背包数据，用于后续判断
         flag, users = read_data(Path(bag_path))
+        users_id = [x[0] for x in users]
         _, state["plants"], _, _, _ = users[users_id.index(user_id)]
         msg = args.extract_plain_text().strip()
         if msg and (
